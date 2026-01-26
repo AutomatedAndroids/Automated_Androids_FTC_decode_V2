@@ -1,83 +1,56 @@
 package subsystems;
 
 import com.arcrobotics.ftclib.command.SubsystemBase;
-import com.arcrobotics.ftclib.gamepad.GamepadEx;
-import com.arcrobotics.ftclib.gamepad.GamepadKeys;
 import com.arcrobotics.ftclib.hardware.motors.Motor;
 import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 
-import java.util.function.BooleanSupplier;
 
 public class IntakeSubsystem extends SubsystemBase {
-    private final Motor leftMotor, rightMotor;
-    private final Servo mechRotation;
+    private Motor intakeMotor;
+    private Servo sortArm;
     private Telemetry telemetry;
 
-    public IntakeSubsystem(Motor leftIntakeMotor, Motor rightIntakeMotor,
-                           Servo mechRotation) {
-        this.mechRotation = mechRotation;
-        leftMotor = leftIntakeMotor;
-        rightMotor = rightIntakeMotor;
+    private final double middle = 0.47;
+    private final double swing = 0.19;
 
-        this.telemetry = null;
-    }
 
-    public IntakeSubsystem(Telemetry telemetry)
-    {
-        mechRotation = null;
-        leftMotor = null;
-        rightMotor = null;
+    public IntakeSubsystem(Motor intakeMotor, Servo sortArm, Telemetry telemetry) {
+        this.intakeMotor = intakeMotor;
+        this.sortArm = sortArm;
         this.telemetry = telemetry;
     }
 
-    public void activate() {
-        leftMotor.set(0.75);
-        rightMotor.set(-0.75);
+    public void sort(boolean side) { //false is left, true is right
+        if (side) {
+            sortArm.setPosition(middle - swing);
+            telemetry.addData("Sorting to the right", "");
+        } else {
+            sortArm.setPosition(middle + swing);
+            telemetry.addData("Sorting to the left", "");
+        }
+        telemetry.addData("Servo Pos", sortArm.getPosition());
+
     }
 
-    public void stop() {
-        leftMotor.set(0);
-        rightMotor.set(0);
+    public void sort(){
+        sortArm.setPosition(0.75);
     }
 
-    public void reverse() {
-        leftMotor.set(-0.75);
-        rightMotor.set(0.75);
+    public void turnOnIntake() {
+        intakeMotor.set(1);
+        telemetry.addData("Intake", "On");
     }
 
-    double commandMechRotation = 0;
-
-    /**
-     * Grabs a object.
-     */
-    public void grab()
-    {
-        if(telemetry == null)
-        commandMechRotation = (0.76);
-        else
-            telemetry.addLine("Grab Called");
-    }
-
-    /**
-     * Releases a object.
-     */
-    public void release()
-    {
-        if(telemetry == null)
-        commandMechRotation = (0);
-        else
-            telemetry.addLine("Release Called");
+    public void turnOffIntake() {
+        intakeMotor.set(0);
+        telemetry.addData("Intake", "Off");
     }
 
     @Override
-    public void periodic() 
-    {
-        if(mechRotation != null)
-            mechRotation.setPosition(commandMechRotation);
-
-        if(telemetry != null)
-            telemetry.update();
+    public void periodic() {
+        super.periodic();
+        //telemetry.update();
     }
 }

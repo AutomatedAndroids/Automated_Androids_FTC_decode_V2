@@ -6,16 +6,20 @@ import com.arcrobotics.ftclib.command.CommandOpMode;
 import com.arcrobotics.ftclib.command.InstantCommand;
 import com.arcrobotics.ftclib.command.RunCommand;
 import com.arcrobotics.ftclib.command.button.GamepadButton;
+import com.arcrobotics.ftclib.command.button.Trigger;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.gamepad.GamepadKeys;
 import com.arcrobotics.ftclib.hardware.GyroEx;
+import com.arcrobotics.ftclib.hardware.motors.CRServo;
 import com.arcrobotics.ftclib.hardware.motors.Motor;
+import com.arcrobotics.ftclib.hardware.motors.MotorEx;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.IMU;
+import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -39,12 +43,16 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.trajectory.TrajectoryConfig;
 import subsystems.IntakeSubsystem;
 import subsystems.MecanumDriveSubsystem;
+import subsystems.ShooterSubsystem;
 import util.DashServer;
 
 @TeleOp
 public class TeleOpMecanum extends CommandOpMode {
 
-    private Motor frontLeft, frontRight, backLeft, backRight;
+    private Motor frontLeft, frontRight, backLeft, backRight, intakeMotor;
+    private MotorEx shooterMotor;
+    private Servo sortArm, leftSafety, rightSafety;
+    private CRServo leftFeeder, rightFeeder;
 
     GyroEx gyro;
 
@@ -55,6 +63,8 @@ public class TeleOpMecanum extends CommandOpMode {
     private MecanumDriveSubsystem mecanumDriveSubsystem;
 
     private IntakeSubsystem intakeSubsystem;
+    private ShooterSubsystem shooterSubsystem;
+
 
     private static final boolean USE_DEBUG_FIELD_TAGS = true;
 
@@ -62,10 +72,10 @@ public class TeleOpMecanum extends CommandOpMode {
 
     private void initDriveWheels()
     {
-        frontLeft = new Motor(hardwareMap, "frontleft", Motor.GoBILDA.RPM_312);//RPM_435
-        frontRight = new Motor(hardwareMap, "frontright", Motor.GoBILDA.RPM_312);//RPM_312
-        backLeft = new Motor(hardwareMap, "backleft", Motor.GoBILDA.RPM_312);
-        backRight = new Motor(hardwareMap, "backright", Motor.GoBILDA.RPM_312);
+        frontLeft = new Motor(hardwareMap, "fL", Motor.GoBILDA.RPM_312);//RPM_435
+        frontRight = new Motor(hardwareMap, "fR", Motor.GoBILDA.RPM_312);//RPM_312
+        backLeft = new Motor(hardwareMap, "bL", Motor.GoBILDA.RPM_312);
+        backRight = new Motor(hardwareMap, "bR", Motor.GoBILDA.RPM_312);
 
         frontLeft.setInverted(true);
         backLeft.setInverted(true);
@@ -136,7 +146,7 @@ public class TeleOpMecanum extends CommandOpMode {
                 RevHubOrientationOnRobot.LogoFacingDirection logoDirection =
                         RevHubOrientationOnRobot.LogoFacingDirection.UP;
                 RevHubOrientationOnRobot.UsbFacingDirection  usbDirection  =
-                        RevHubOrientationOnRobot.UsbFacingDirection.FORWARD;
+                        RevHubOrientationOnRobot.UsbFacingDirection.LEFT;
                 RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(
                         logoDirection, usbDirection);
 
@@ -286,15 +296,75 @@ public class TeleOpMecanum extends CommandOpMode {
         limelightApriltag.start();
     }
 
+    private void initIntake()
+    {
+        try {
+            intakeMotor = new Motor(hardwareMap, "intake");
+            sortArm = hardwareMap.get(Servo.class, "sortArm");
+
+        } catch (Exception e) {
+            telemetry.addData("Warning", "Intake failed to init");
+            telemetry.addData("Warning", e);
+            telemetry.update();
+            intakeMotor = null;
+            sortArm = null;
+        }
+    }
+
+    private void initShooter()
+    {
+        try {
+            shooterMotor = new MotorEx(hardwareMap, "shooter");
+            leftFeeder  = new CRServo(hardwareMap, "leftFeeder");
+            rightFeeder = new CRServo(hardwareMap, "rightFeeder");
+            leftSafety = hardwareMap.get(Servo.class, "leftSafety");
+            rightSafety = hardwareMap.get(Servo.class, "rightSafety");
+        } catch (Exception e) {
+            telemetry.addData("Warning", "Shooter failed to init");
+            telemetry.addData("Warning", e);
+            telemetry.update();
+            shooterMotor = null;
+            leftFeeder = null;
+            rightFeeder = null;
+            leftSafety = null;
+            rightSafety = null;
+        }
+    }
+
     @Override
     public void initialize() {
 
         initDriveWheels();
         initGyro();
         initLimelight();
+        initIntake();
+        initShooter();
         //initWebCamAprilTag();
 
-        intakeSubsystem = new IntakeSubsystem(telemetry);
+        // Only create subsystems if hardware initialization succeeded
+        if (intakeMotor != null && sortArm != null) {
+            intakeSubsystem = new IntakeSubsystem(
+                    intakeMotor,
+                    sortArm,
+                    telemetry
+            );
+        } else {
+            intakeSubsystem = null;
+        }
+
+        if (shooterMotor != null && leftFeeder != null && rightFeeder != null && 
+            leftSafety != null && rightSafety != null) {
+            shooterSubsystem = new ShooterSubsystem(
+                    leftFeeder,
+                    rightFeeder,
+                    shooterMotor,
+                    leftSafety,
+                    rightSafety,
+                    telemetry
+            );
+        } else {
+            shooterSubsystem = null;
+        }
 
         mecanumDriveSubsystem = new MecanumDriveSubsystem(
                 frontLeft,
@@ -314,9 +384,10 @@ public class TeleOpMecanum extends CommandOpMode {
 //            mecanumDriveSubsystem.setVisionLimelightPoseEnable(true);
 
         GamepadEx driverOp  = new GamepadEx(gamepad1);
+        GamepadEx operatorOp = new GamepadEx(gamepad2);
 
         // Configure the button bindings
-        configureButtonBindings(driverOp);
+        configureButtonBindings(driverOp, operatorOp);
 
         // Configure default commands
         // Set the default drive command to split-stick arcade drive
@@ -384,69 +455,93 @@ public class TeleOpMecanum extends CommandOpMode {
     /**
      * Use this method to define your button->command mappings.
      */
-    private void configureButtonBindings(GamepadEx driverOp) {
-
-//        // bindings
-        driverOp.getGamepadButton(GamepadKeys.Button.B)
-                .whenPressed(new MecanumDynamicControllerCommand(
-                        mecanumDriveSubsystem::getCurrentEstimatedPose,
-                        new Pose2d(1,1, new Rotation2d()),
-                        trajectoryConfig,
-                        mecanumDriveSubsystem::getCurrentEstimatedPose,
-                        mecanumDriveSubsystem.getKinematics(),
-                        new edu.wpi.first.math.controller.PIDController(0.3,0,0.001),
-                        new edu.wpi.first.math.controller.PIDController(0.2,0,0.001),
-                        new edu.wpi.first.math.controller.ProfiledPIDController(
-                                0.1,0,0.005,
-                                new edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints(
-                                        0.5,0.5)),
-                        ACHIEVABLE_MAX_DISTANCE_PER_SECOND,
-                        mecanumDriveSubsystem::driveBySpeedEvent,
-                        mecanumDriveSubsystem).whenFinished(mecanumDriveSubsystem::stop));
-
-        driverOp.getGamepadButton(GamepadKeys.Button.A)
-                .whenPressed(new MecanumDynamicControllerCommand(
-                        mecanumDriveSubsystem::getCurrentEstimatedPose,
-                        new Pose2d(0,0, new Rotation2d()),
-                        trajectoryConfigReverse,
-                        mecanumDriveSubsystem::getCurrentEstimatedPose,
-                        mecanumDriveSubsystem.getKinematics(),
-                        new edu.wpi.first.math.controller.PIDController(0.3,0,0.001),
-                        new edu.wpi.first.math.controller.PIDController(0.2,0,0.001),
-                        new edu.wpi.first.math.controller.ProfiledPIDController(
-                                0.1,0,0.005,
-                                new edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints(
-                                        0.5,0.5)),
-                        ACHIEVABLE_MAX_DISTANCE_PER_SECOND,
-                        mecanumDriveSubsystem::driveBySpeedEvent,
-                        mecanumDriveSubsystem).whenFinished(mecanumDriveSubsystem::stop));
-
-//        gamepad.getGamepadButton(GamepadKeys.Button.B)
-//                .whenPressed(new StopMotorCommand(mecanumDriveSubsystem));
+    private void configureButtonBindings(GamepadEx driverOp, GamepadEx operatorOp) {
 //
-//        // button bindings for the intake
-//        gamepad.getGamepadButton(GamepadKeys.Button.A)
-//                .whenHeld(new InstantCommand(intake::activate, intake))
-//                .whenReleased(new InstantCommand(intake::stop, intake));
-//        gamepad.getGamepadButton(GamepadKeys.Button.B)
-//                .whenHeld(new InstantCommand(intake::reverse, intake))
-//                .whenReleased(new InstantCommand(intake::stop, intake));
-
-        // Drive at half speed when the right bumper is held
-//        new GamepadButton(driverOp, GamepadKeys.Button.RIGHT_BUMPER)
-//                .whenHeld(new InstantCommand(() -> mecanumDriveSubsystem.setMaxOutput(0.3)))
-//                .whenReleased(new InstantCommand(() -> mecanumDriveSubsystem.setMaxOutput(1)));
+////        // bindings
+//        driverOp.getGamepadButton(GamepadKeys.Button.B)
+//                .whenPressed(new MecanumDynamicControllerCommand(
+//                        mecanumDriveSubsystem::getCurrentEstimatedPose,
+//                        new Pose2d(1,1, new Rotation2d()),
+//                        trajectoryConfig,
+//                        mecanumDriveSubsystem::getCurrentEstimatedPose,
+//                        mecanumDriveSubsystem.getKinematics(),
+//                        new edu.wpi.first.math.controller.PIDController(0.3,0,0.001),
+//                        new edu.wpi.first.math.controller.PIDController(0.2,0,0.001),
+//                        new edu.wpi.first.math.controller.ProfiledPIDController(
+//                                0.1,0,0.005,
+//                                new edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints(
+//                                        0.5,0.5)),
+//                        ACHIEVABLE_MAX_DISTANCE_PER_SECOND,
+//                        mecanumDriveSubsystem::driveBySpeedEvent,
+//                        mecanumDriveSubsystem).whenFinished(mecanumDriveSubsystem::stop));
 //
 //        driverOp.getGamepadButton(GamepadKeys.Button.A)
-//                .whenPressed(new InstantCommand(mecanumDriveSubsystem::setFiledRelative,
-//                        mecanumDriveSubsystem));
-//        driverOp.getGamepadButton(GamepadKeys.Button.B)
-//                .whenPressed(new InstantCommand(mecanumDriveSubsystem::setRobotRelative,
-//                        mecanumDriveSubsystem));
-//
-//        new GamepadButton(driverOp, GamepadKeys.Button.X)
-//                .whenPressed(new DriverJoystickCommand(90,0.5, mecanumDriveSubsystem))
-//                .whenReleased(new InstantCommand(() -> mecanumDriveSubsystem.stop()));
+//                .whenPressed(new MecanumDynamicControllerCommand(
+//                        mecanumDriveSubsystem::getCurrentEstimatedPose,
+//                        new Pose2d(0,0, new Rotation2d()),
+//                        trajectoryConfigReverse,
+//                        mecanumDriveSubsystem::getCurrentEstimatedPose,
+//                        mecanumDriveSubsystem.getKinematics(),
+//                        new edu.wpi.first.math.controller.PIDController(0.3,0,0.001),
+//                        new edu.wpi.first.math.controller.PIDController(0.2,0,0.001),
+//                        new edu.wpi.first.math.controller.ProfiledPIDController(
+//                                0.1,0,0.005,
+//                                new edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints(
+//                                        0.5,0.5)),
+//                        ACHIEVABLE_MAX_DISTANCE_PER_SECOND,
+//                        mecanumDriveSubsystem::driveBySpeedEvent,
+//                        mecanumDriveSubsystem).whenFinished(mecanumDriveSubsystem::stop));
+
+        // --- SHOOTER CONTROLS ---
+        // Feeders (Triggers)
+        if (shooterSubsystem != null) {
+            new Trigger(() -> driverOp.getTrigger(GamepadKeys.Trigger.LEFT_TRIGGER) > 0)
+                    .whileActiveContinuous(new InstantCommand(shooterSubsystem::feedLeft))
+                    .whenInactive(new InstantCommand(shooterSubsystem::stopLeft));
+
+            new Trigger(() -> driverOp.getTrigger(GamepadKeys.Trigger.RIGHT_TRIGGER) > 0)
+                    .whileActiveContinuous(new InstantCommand(shooterSubsystem::feedRight))
+                    .whenInactive(new InstantCommand(shooterSubsystem::stopRight));
+        }
+
+        // --- OPERATOR CONTROLS ---
+
+        // Flywheel Spin Up (A = Shoot Far, B = Stop)
+        if (shooterSubsystem != null) {
+            operatorOp.getGamepadButton(GamepadKeys.Button.A)
+                    .whenPressed(new InstantCommand(shooterSubsystem::shoot_close));
+
+            new Trigger(() -> operatorOp.getTrigger(GamepadKeys.Trigger.RIGHT_TRIGGER) > 0)
+                    .whileActiveOnce(new InstantCommand(shooterSubsystem::shoot_far));
+
+            operatorOp.getGamepadButton(GamepadKeys.Button.B)
+                    .whenPressed(new InstantCommand(shooterSubsystem::stopFlywheels));
+        }
+
+        // Sort Arm (Bumpers)
+        if (intakeSubsystem != null) {
+            operatorOp.getGamepadButton(GamepadKeys.Button.LEFT_BUMPER)
+                    .whenPressed(new InstantCommand(() -> intakeSubsystem.sort(false))); // Left
+
+            operatorOp.getGamepadButton(GamepadKeys.Button.RIGHT_BUMPER)
+                    .whenPressed(new InstantCommand(() -> intakeSubsystem.sort(true))); // Right
+
+            // Optional: Intake Motor Control for Operator (Triggers)
+            new Trigger(() -> operatorOp.getTrigger(GamepadKeys.Trigger.LEFT_TRIGGER) > 0.1)
+                    .whileActiveContinuous(new InstantCommand(intakeSubsystem::turnOnIntake))
+                    .whenInactive(new InstantCommand(intakeSubsystem::turnOffIntake));
+        }
+
+        if(shooterSubsystem != null) {
+            operatorOp.getGamepadButton(GamepadKeys.Button.DPAD_UP)
+                    .whenPressed(new InstantCommand(() -> shooterSubsystem.increaseShootFar()));
+            operatorOp.getGamepadButton(GamepadKeys.Button.DPAD_DOWN)
+                    .whenPressed(new InstantCommand(() -> shooterSubsystem.decreaseShootFar()));
+            operatorOp.getGamepadButton(GamepadKeys.Button.DPAD_RIGHT)
+                    .whenPressed(new InstantCommand(() -> shooterSubsystem.increaseShootClose()));
+            operatorOp.getGamepadButton(GamepadKeys.Button.DPAD_LEFT)
+                    .whenPressed(new InstantCommand(() -> shooterSubsystem.decreaseShootClose()));
+        }
     }
 
     ////// DO NOT MODIFY THIS FUNCTION UNLESS YOU GET CONFIRMED!!!

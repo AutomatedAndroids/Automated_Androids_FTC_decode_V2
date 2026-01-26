@@ -1,14 +1,11 @@
 import android.util.Size;
 
 import com.arcrobotics.ftclib.command.CommandOpMode;
-import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.hardware.GyroEx;
 import com.arcrobotics.ftclib.hardware.motors.Motor;
 
-import Config.ApriltagsFieldData;
 import Config.DriveConstants;
-import commands.Auto3PushCommand;
-import subsystems.IntakeSubsystem;
+import commands.MecanumDynamicControllerCommand;
 import subsystems.MecanumDriveSubsystem;
 import util.DashServer;
 
@@ -30,40 +27,49 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 
-@Autonomous
-public class AutoOpmodeMecanumPathPlan extends CommandOpMode {
+import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.controller.ProfiledPIDController;
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.trajectory.TrajectoryConfig;
+import edu.wpi.first.math.trajectory.TrapezoidProfile;
 
-    private Motor frontLeft, frontRight, backLeft, backRight, intakeMotor;
-    private Servo sortArm;
+/**
+ * Autonomous opmode that moves the robot to a specific Pose2D.
+ * 
+ * Modify the TARGET_POSE constant to set the desired position and rotation.
+ */
+@Autonomous(name = "Auto: Move To Pose", group = "Auto")
+public class AutoOpmodeMoveToPose extends CommandOpMode {
 
-    GyroEx gyro;
-
+    private Motor frontLeft, frontRight, backLeft, backRight;
+    private GyroEx gyro;
     private AprilTagProcessor webcamAprilTag;
-
     private Limelight3A limelightApriltag;
-
     private MecanumDriveSubsystem mecanumDriveSubsystem;
-    
-    private IntakeSubsystem intakeSubsystem;
-
-    private static final boolean USE_DEBUG_FIELD_TAGS = true;
 
     double ACHIEVABLE_MAX_DISTANCE_PER_SECOND;
 
-    private void initDriveWheels()
-    {
-        frontLeft = new Motor(hardwareMap, "fL", Motor.GoBILDA.RPM_312);//RPM_435
-        frontRight = new Motor(hardwareMap, "fR", Motor.GoBILDA.RPM_312);//RPM_312
+    // ===== CONFIGURATION: Set your target pose here =====
+    // Pose2d(x, y, rotation)
+    // x and y are in meters
+    // rotation is a Rotation2d (can use Rotation2d.fromDegrees(angle) for degrees)
+    private static final Pose2d TARGET_POSE = new Pose2d(
+            1.0,  // x position in meters (forward/backward)
+            0.5,  // y position in meters (left/right)
+            Rotation2d.fromDegrees(90)  // rotation in degrees (0 = forward, 90 = left, -90 = right, 180 = backward)
+    );
+    // ====================================================
+
+    private void initDriveWheels() {
+        frontLeft = new Motor(hardwareMap, "fL", Motor.GoBILDA.RPM_312);
+        frontRight = new Motor(hardwareMap, "fR", Motor.GoBILDA.RPM_312);
         backLeft = new Motor(hardwareMap, "bL", Motor.GoBILDA.RPM_312);
         backRight = new Motor(hardwareMap, "bR", Motor.GoBILDA.RPM_312);
 
         frontLeft.setInverted(true);
         backLeft.setInverted(true);
 
-//        frontLeft.setBuffer(1);
-//        frontRight.setBuffer(1);
-//        backLeft.setBuffer(1);
-//        backRight.setBuffer(1);
         frontLeft.motor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         frontRight.motor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         backLeft.motor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -88,8 +94,8 @@ public class AutoOpmodeMecanumPathPlan extends CommandOpMode {
         frontRight.setFeedforwardCoefficients(0.4, 0.6, 0.5);
         backLeft.setFeedforwardCoefficients(0.2, 0.6, 0.5);
         backRight.setFeedforwardCoefficients(0.2, 0.6, 0.5);
-		
-	    frontLeft.setZeroPowerBehavior(Motor.ZeroPowerBehavior.BRAKE);
+
+        frontLeft.setZeroPowerBehavior(Motor.ZeroPowerBehavior.BRAKE);
         frontRight.setZeroPowerBehavior(Motor.ZeroPowerBehavior.BRAKE);
         backLeft.setZeroPowerBehavior(Motor.ZeroPowerBehavior.BRAKE);
         backRight.setZeroPowerBehavior(Motor.ZeroPowerBehavior.BRAKE);
@@ -106,10 +112,8 @@ public class AutoOpmodeMecanumPathPlan extends CommandOpMode {
         backLeft.encoder.setDistancePerPulse(DriveConstants.DISTANCE_PER_PULSE);
         backRight.encoder.setDistancePerPulse(DriveConstants.DISTANCE_PER_PULSE);
 
-
         double ACHIEVABLE_MAX_TICKS_PER_SECOND = frontLeft.ACHIEVABLE_MAX_TICKS_PER_SECOND;
         ACHIEVABLE_MAX_DISTANCE_PER_SECOND = ACHIEVABLE_MAX_TICKS_PER_SECOND * DriveConstants.DISTANCE_PER_PULSE;
-        // about 1.567 m/s
 
         backRight.motor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         frontRight.motor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -117,15 +121,15 @@ public class AutoOpmodeMecanumPathPlan extends CommandOpMode {
         backLeft.motor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
     }
 
-    private void initGyro()
-    {
+    private void initGyro() {
         gyro = new GyroEx() {
             IMU imu = hardwareMap.get(IMU.class, "imu");
+
             @Override
             public void init() {
                 RevHubOrientationOnRobot.LogoFacingDirection logoDirection =
                         RevHubOrientationOnRobot.LogoFacingDirection.UP;
-                RevHubOrientationOnRobot.UsbFacingDirection  usbDirection  =
+                RevHubOrientationOnRobot.UsbFacingDirection usbDirection =
                         RevHubOrientationOnRobot.UsbFacingDirection.LEFT;
                 RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(
                         logoDirection, usbDirection);
@@ -145,9 +149,8 @@ public class AutoOpmodeMecanumPathPlan extends CommandOpMode {
             }
 
             @Override
-            public double[] getAngles()
-            {
-                return new double[] {
+            public double[] getAngles() {
+                return new double[]{
                         imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.DEGREES),
                         imu.getRobotYawPitchRollAngles().getPitch(AngleUnit.DEGREES),
                         imu.getRobotYawPitchRollAngles().getRoll(AngleUnit.DEGREES)
@@ -166,7 +169,6 @@ public class AutoOpmodeMecanumPathPlan extends CommandOpMode {
 
             @Override
             public void disable() {
-
             }
 
             @Override
@@ -178,43 +180,23 @@ public class AutoOpmodeMecanumPathPlan extends CommandOpMode {
         gyro.init();
     }
 
-    private void initWebCamAprilTag()
-    {
+    private void initWebCamAprilTag() {
         AprilTagLibrary apriltagLib;
         VisionPortal visionPortal;
         WebcamName apriltagCam;
 
-        try{
+        try {
             apriltagCam = hardwareMap.get(WebcamName.class, "Webcam 1");
-        } catch(Exception e) {
+        } catch (Exception e) {
             webcamAprilTag = null;
             telemetry.addLine(" Lost Webcam 1 /n");
             telemetry.update();
             return;
         }
 
-        // Create the AprilTag processor.
         AprilTagProcessor.Builder myAprilTagProcessorBuilder = new AprilTagProcessor.Builder();
-        if(USE_DEBUG_FIELD_TAGS)
-        {
-            AprilTagLibrary.Builder libBuilder = new AprilTagLibrary.Builder();
-            libBuilder.addTag(ApriltagsFieldData.tag_2);
-            libBuilder.addTag(ApriltagsFieldData.tag_42);
-            myAprilTagProcessorBuilder.setTagLibrary(libBuilder.build());
-        }
-        else {
-            myAprilTagProcessorBuilder.setTagLibrary(AprilTagGameDatabase.getCurrentGameTagLibrary());//libBuilder.build());////
-        }
+        myAprilTagProcessorBuilder.setTagLibrary(AprilTagGameDatabase.getCurrentGameTagLibrary());
 
-        // The following default settings are available to un-comment and edit as needed.
-        //.setTagFamily(AprilTagProcessor.TagFamily.TAG_36h11)
-        //.setTagLibrary(AprilTagGameDatabase.getCenterStageTagLibrary())
-        
-        // == CAMERA CALIBRATION ==
-        // If you do not manually specify calibration parameters, the SDK will attempt
-        // to load a predefined calibration for your camera.
-        //.setLensIntrinsics(578.272, 578.272, 402.145, 221.506)
-        // ... these parameters are fx, fy, cx, cy.
         myAprilTagProcessorBuilder.setDrawTagID(true);
         myAprilTagProcessorBuilder.setDrawTagOutline(true);
         myAprilTagProcessorBuilder.setDrawAxes(true);
@@ -222,46 +204,20 @@ public class AutoOpmodeMecanumPathPlan extends CommandOpMode {
         myAprilTagProcessorBuilder.setOutputUnits(DistanceUnit.METER, AngleUnit.DEGREES);
         webcamAprilTag = myAprilTagProcessorBuilder.build();
 
-        // Adjust Image Decimation to trade-off detection-range for detection-rate.
-        // eg: Some typical detection data using a Logitech C920 WebCam
-        // Decimation = 1 ..  Detect 2" Tag from 10 feet away at 10 Frames per second
-        // Decimation = 2 ..  Detect 2" Tag from 6  feet away at 22 Frames per second
-        // Decimation = 3 ..  Detect 2" Tag from 4  feet away at 30 Frames Per Second (default)
-        // Decimation = 3 ..  Detect 5" Tag from 10 feet away at 30 Frames Per Second (default)
-        // Note: Decimation can be changed on-the-fly to adapt during a match.
-        //aprilTag.setDecimation(3);
-
-        // Create the vision portal by using a builder.
         VisionPortal.Builder builder = new VisionPortal.Builder();
-
         builder.setCamera(apriltagCam);
-        builder.setCameraResolution(new Size(640,480)); //1280, 720));// fps 4
-        // Enable the RC preview (LiveView).  Set "false" to omit camera monitoring.
+        builder.setCameraResolution(new Size(640, 480));
         builder.enableLiveView(true);
-        // Set the stream format; MJPEG uses less bandwidth than default YUY2.
-        builder.setStreamFormat(VisionPortal.StreamFormat.MJPEG);//YUY2);
-        // Choose whether or not LiveView stops if no processors are enabled.
-        // If set "true", monitor shows solid orange screen if no processors enabled.
-        // If set "false", monitor shows camera view without annotations.
-        //builder.setAutoStopLiveView(false);
-        //builder.setLiveViewContainerId(0);
-
-        // Set and enable the processor.
+        builder.setStreamFormat(VisionPortal.StreamFormat.MJPEG);
         builder.addProcessor(webcamAprilTag);
-
-        // Build the Vision Portal, using the above settings.
         visionPortal = builder.build();
-
-        // Disable or re-enable the aprilTag processor at any time.
         visionPortal.setProcessorEnabled(webcamAprilTag, true);
-        //webcamStartTime = (double)System.nanoTime()/1E9;
     }
 
-    private void initLimelight()
-    {
-        try{
+    private void initLimelight() {
+        try {
             limelightApriltag = hardwareMap.get(Limelight3A.class, "limelight");
-        } catch(Exception e){
+        } catch (Exception e) {
             limelightApriltag = null;
             telemetry.addLine(" Lost Limelight /n");
             telemetry.update();
@@ -269,47 +225,17 @@ public class AutoOpmodeMecanumPathPlan extends CommandOpMode {
         }
 
         limelightApriltag.pipelineSwitch(0);
-
         limelightApriltag.start();
     }
 
-    private void initIntake()
-    {
-        try {
-            intakeMotor = new Motor(hardwareMap, "intake");
-            sortArm = hardwareMap.get(Servo.class, "sortArm");
-
-        } catch (Exception e) {
-            telemetry.addData("Warning", "Intake failed to init");
-            telemetry.addData("Warning", e);
-            telemetry.update();
-            intakeMotor = null;
-            sortArm = null;
-        }
-    }
-
     @Override
-    public void initialize()
-    {
-        //telemetry.setMsTransmissionInterval(11);
-
+    public void initialize() {
         initDriveWheels();
         initGyro();
         initLimelight();
-        initIntake();
-        initWebCamAprilTag();        
+        initWebCamAprilTag();
 
-        // Only create subsystems if hardware initialization succeeded
-        if (intakeMotor != null && sortArm != null) {
-            intakeSubsystem = new IntakeSubsystem(
-                    intakeMotor,
-                    sortArm,
-                    telemetry
-            );
-        } else {
-            intakeSubsystem = null;
-        }
-        
+        // Initialize the drive subsystem with starting pose at origin
         mecanumDriveSubsystem = new MecanumDriveSubsystem(
                 frontLeft,
                 frontRight,
@@ -318,62 +244,80 @@ public class AutoOpmodeMecanumPathPlan extends CommandOpMode {
                 gyro,
                 webcamAprilTag,
                 limelightApriltag,
-                new edu.wpi.first.math.geometry.Pose2d(),
+                new Pose2d(),  // Start at origin (0, 0, 0)
                 telemetry
         );
 
         mecanumDriveSubsystem.enableDrive();
 
-        //wpiMecanumDriveSubsystem.setDefaultCommand(
-        //new ApriltagCommand(wpiMecanumDriveSubsystem, aprilTag, telemetry));
-        // update telemetry every loop
-        //schedule(new RunCommand(telemetry::update));
+        // Configure trajectory settings
+        TrajectoryConfig trajectoryConfig = new TrajectoryConfig(
+                DriveConstants.TRAJECTORY_MAX_VELOCITY,
+                DriveConstants.MAX_ACCELERATION,
+                false)  // Set to true if you want to allow reverse
+                .setKinematics(DriveConstants.kinematicsWPI);
 
-        schedule(new Auto3PushCommand(
-                mecanumDriveSubsystem,
-                intakeSubsystem,
-                ACHIEVABLE_MAX_DISTANCE_PER_SECOND
-        ));
+        // Create PID controllers for x, y, and theta (rotation)
+        // These values may need tuning for your robot
+        PIDController xController = new PIDController(0.3, 0, 0.001);
+        PIDController yController = new PIDController(0.2, 0, 0.001);
+        ProfiledPIDController thetaController = new ProfiledPIDController(
+                0.1, 0, 0.005,
+                new TrapezoidProfile.Constraints(0.5, 0.5)
+        );
+
+        // Schedule the command to move to target pose
+        schedule(new MecanumDynamicControllerCommand(
+                mecanumDriveSubsystem::getCurrentEstimatedPose,  // Current pose supplier
+                TARGET_POSE,  // Target pose
+                trajectoryConfig,  // Trajectory configuration
+                mecanumDriveSubsystem::getCurrentEstimatedPose,  // Pose supplier for controller
+                mecanumDriveSubsystem.getKinematics(),  // Kinematics
+                xController,  // X PID controller
+                yController,  // Y PID controller
+                thetaController,  // Theta (rotation) PID controller
+                ACHIEVABLE_MAX_DISTANCE_PER_SECOND,  // Max wheel velocity
+                mecanumDriveSubsystem::driveBySpeedEvent,  // Output wheel speeds
+                mecanumDriveSubsystem  // Required subsystem
+        ).whenFinished(mecanumDriveSubsystem::stop));  // Stop when finished
     }
-
 
     ////// DO NOT MODIFY THIS FUNCTION UNLESS YOU GET CONFIRMED!!!
     private int FrameCounter = 0;
     static final double MIN_TASK_RUN_PERIOD = 100;
+
     @Override
     public void runOpMode() {
-        LynxModule controlHub  = hardwareMap.get(LynxModule.class, "Control Hub");
-         DashServer.Init();
-         boolean connected = false;
-         do {
-             connected = DashServer.Connect();
-             connected |= DashServer.AddData("time", FrameCounter);
-             sleep(1);
-         } while (!connected);
+        LynxModule controlHub = hardwareMap.get(LynxModule.class, "Control Hub");
+        DashServer.Init();
+        boolean connected = false;
+        do {
+            connected = DashServer.Connect();
+            connected |= DashServer.AddData("time", FrameCounter);
+            sleep(1);
+        } while (!connected);
 
         initialize();
         waitForStart();
         double taskRunTime = 0;
 
         while (!isStopRequested() && opModeIsActive()) {
-            //DashServer.AddData("Start", startTime);
-            //DashServer.AddData("wcStart", webcamStartTime);
             DashServer.AddData("tskTime", taskRunTime);
             double currentTime = (double) System.nanoTime() / 1E9;
-             DashServer.AddData("OSTime", currentTime);
+            DashServer.AddData("OSTime", currentTime);
             run();
-             DashServer.AddData("time", FrameCounter++);
-             DashServer.AddData("busVoltage",
-                     controlHub .getInputVoltage(VoltageUnit.VOLTS));
-             DashServer.DashData();
+            DashServer.AddData("time", FrameCounter++);
+            DashServer.AddData("busVoltage",
+                    controlHub.getInputVoltage(VoltageUnit.VOLTS));
+            DashServer.DashData();
 
             taskRunTime = (double) System.nanoTime() / 1E9 - currentTime;
-            long sleepTime = (long)(MIN_TASK_RUN_PERIOD - taskRunTime*1000);
-            if(sleepTime > 0)
+            long sleepTime = (long) (MIN_TASK_RUN_PERIOD - taskRunTime * 1000);
+            if (sleepTime > 0)
                 sleep(sleepTime);
         }
         reset();
-        if(limelightApriltag != null) limelightApriltag.stop();
+        if (limelightApriltag != null) limelightApriltag.stop();
         DashServer.AddData("time", FrameCounter++);
         DashServer.AddData("OSTime", (double) System.nanoTime() / 1E9);
         DashServer.DashData();

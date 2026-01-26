@@ -28,6 +28,7 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.IMU;
+import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -50,7 +51,8 @@ import subsystems.IntakeSubsystem;
 @Autonomous
 public class AutonomousFTCLibMecanumDrive extends CommandOpMode {
 
-    private Motor frontLeft, frontRight, backLeft, backRight;
+    private Motor frontLeft, frontRight, backLeft, backRight, intakeMotor;
+    private Servo sortArm;
     GyroEx gyro;
     private FTCLibMecanumDriveSubsystem ftclibMecanumDriveSubsystem;
     private IntakeSubsystem intakeSubsystem;
@@ -136,10 +138,10 @@ public class AutonomousFTCLibMecanumDrive extends CommandOpMode {
     {
         initAprilTag();
 
-        frontLeft = new Motor(hardwareMap, "frontleft", Motor.GoBILDA.RPM_312);//RPM_435
-        frontRight = new Motor(hardwareMap, "frontright", Motor.GoBILDA.RPM_312);//RPM_312
-        backLeft = new Motor(hardwareMap, "backleft", Motor.GoBILDA.RPM_312);
-        backRight = new Motor(hardwareMap, "backright", Motor.GoBILDA.RPM_312);
+        frontLeft = new Motor(hardwareMap, "fL", Motor.GoBILDA.RPM_312);//RPM_435
+        frontRight = new Motor(hardwareMap, "fR", Motor.GoBILDA.RPM_312);//RPM_312
+        backLeft = new Motor(hardwareMap, "bL", Motor.GoBILDA.RPM_312);
+        backRight = new Motor(hardwareMap, "bR", Motor.GoBILDA.RPM_312);
 
         frontLeft.setInverted(true);
         backLeft.setInverted(true);
@@ -201,7 +203,7 @@ public class AutonomousFTCLibMecanumDrive extends CommandOpMode {
             @Override
             public void init() {
                 RevHubOrientationOnRobot.LogoFacingDirection logoDirection = RevHubOrientationOnRobot.LogoFacingDirection.UP;
-                RevHubOrientationOnRobot.UsbFacingDirection  usbDirection  = RevHubOrientationOnRobot.UsbFacingDirection.FORWARD;
+                RevHubOrientationOnRobot.UsbFacingDirection  usbDirection  = RevHubOrientationOnRobot.UsbFacingDirection.LEFT;
 
                 RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(logoDirection, usbDirection);
 
@@ -255,6 +257,18 @@ public class AutonomousFTCLibMecanumDrive extends CommandOpMode {
 
         gyro.init();
 
+        // Initialize intake hardware
+        try {
+            intakeMotor = new Motor(hardwareMap, "intake");
+            sortArm = hardwareMap.get(Servo.class, "sortArm");
+        } catch (Exception e) {
+            telemetry.addData("Warning", "Intake failed to init");
+            telemetry.addData("Warning", e);
+            telemetry.update();
+            intakeMotor = null;
+            sortArm = null;
+        }
+
         MecanumDriveKinematics kinematics =
                 new MecanumDriveKinematics (
                         new Translation2d(0.2, 0.21),
@@ -277,7 +291,16 @@ public class AutonomousFTCLibMecanumDrive extends CommandOpMode {
                 telemetry
         );
 
-        intakeSubsystem = new IntakeSubsystem(telemetry);
+        // Only create subsystems if hardware initialization succeeded
+        if (intakeMotor != null && sortArm != null) {
+            intakeSubsystem = new IntakeSubsystem(
+                    intakeMotor,
+                    sortArm,
+                    telemetry
+            );
+        } else {
+            intakeSubsystem = null;
+        }
 
 
         TrajectoryConfig configWPI =
@@ -342,7 +365,6 @@ public class AutonomousFTCLibMecanumDrive extends CommandOpMode {
         initialize();
 
         waitForStart();
-        commands.IntakeGrabCommand a = new commands.IntakeGrabCommand(intakeSubsystem, telemetry);
 
         // run the scheduler
         while (!isStopRequested() && opModeIsActive()) {

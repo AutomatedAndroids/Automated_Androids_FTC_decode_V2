@@ -1,15 +1,21 @@
 package subsystems;
 
+import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.hardwareMap;
+
 import android.annotation.SuppressLint;
 
 import com.arcrobotics.ftclib.command.SubsystemBase;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.hardware.GyroEx;
 import com.arcrobotics.ftclib.hardware.motors.Motor;
+import com.acmerobotics.roadrunner.PoseVelocity2d;
+import com.acmerobotics.roadrunner.Vector2d;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.teamcode.MecanumDrive;
+import org.firstinspires.ftc.teamcode.PinpointLocalizer;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagGameDatabase;
@@ -27,7 +33,6 @@ import edu.wpi.first.math.ComputerVisionUtil;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.controller.PIDController;
-import edu.wpi.first.math.estimator.MecanumDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
@@ -46,6 +51,7 @@ import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.LLStatus;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
+import com.qualcomm.robotcore.hardware.HardwareMap;
 
 
 public class MecanumDriveSubsystem extends SubsystemBase
@@ -53,15 +59,15 @@ public class MecanumDriveSubsystem extends SubsystemBase
     Motor frontLeft, backLeft, frontRight,  backRight;
     Motor.Encoder frontLeft_encoder, backLeft_encoder, frontRight_encoder, backRight_encoder;
     GyroEx gyroEx;
-    AprilTagProcessor webcamApriltag;
+//    AprilTagProcessor webcamApriltag;
     Limelight3A limelightApriltag;
     MecanumDriveKinematics mecanumDriveKinematics;
 
     MecanumDriveWheelSpeeds currentWheelSpeeds;
 
-    private MecanumDrivePoseEstimator mecanumPoseEstimator;
-    private Pose2d currentEstimatedPose;
-
+    // RoadRunner drive system
+    private MecanumDrive mecanumDrive;
+    private com.acmerobotics.roadrunner.Pose2d currentEstimatedPoseRR;
 
     Pose2d visionPose2dWebcam = new Pose2d();
     Pose2d visionPose2dLimelight = new Pose2d();
@@ -107,28 +113,37 @@ public class MecanumDriveSubsystem extends SubsystemBase
 
         mecanumDriveKinematics = DriveConstants.kinematicsWPI;
 
-        this.webcamApriltag = webcamApriltag;
+//        this.webcamApriltag = webcamApriltag;
         this.limelightApriltag = limelightApriltag;
 
-        currentEstimatedPose = initialPose;
+        // Convert WPILib Pose2d to RoadRunner Pose2d
+        com.acmerobotics.roadrunner.Pose2d initialPoseRR = wpilibToRoadRunnerPose(initialPose);
+        currentEstimatedPoseRR = initialPoseRR;
 
-        //leftSpeed = gamepad::getLeftY;
-        //rightSpeed = gamepad::getRightY;
-
-        mecanumPoseEstimator = new MecanumDrivePoseEstimator(
-                mecanumDriveKinematics,
-                getGyroRotation2d(),
-                getWheelDistance(),
-                initialPose,
-                VecBuilder.fill(0.05, 0.05, Units.degreesToRadians(5)),
-                VecBuilder.fill(0.5, 0.5, Units.degreesToRadians(30)));
+        // Initialize RoadRunner MecanumDrive
+        mecanumDrive = new MecanumDrive(hardwareMap, initialPoseRR);
 
         this.telemetry = telemetry;
         //this.dataServer = dataServer;
 
-
         headingTurnPID.enableContinuousInput(-180, 180);
         headingTurnPID.setTolerance(0.5);
+    }
+
+    // Helper methods to convert between WPILib and RoadRunner types
+    private com.acmerobotics.roadrunner.Pose2d wpilibToRoadRunnerPose(Pose2d wpilibPose) {
+        return new com.acmerobotics.roadrunner.Pose2d(
+                new Vector2d(wpilibPose.getX(), wpilibPose.getY()),
+                com.acmerobotics.roadrunner.Rotation2d.fromDouble(wpilibPose.getRotation().getRadians())
+        );
+    }
+
+    private Pose2d roadRunnerToWpilibPose(com.acmerobotics.roadrunner.Pose2d rrPose) {
+        return new Pose2d(
+                rrPose.position.x,
+                rrPose.position.y,
+                new Rotation2d(rrPose.heading.toDouble())
+        );
     }
 
 //    com.arcrobotics.ftclib.geometry.Rotation2d previousHeading = new com.arcrobotics.ftclib.geometry.Rotation2d();
@@ -139,16 +154,6 @@ public class MecanumDriveSubsystem extends SubsystemBase
     @Override
     public void periodic()
     {
-//        previousHeading = currentHeading;
-//        currentHeading = gyroEx.getRotation2d();
-//
-//        double cos_angle = previousHeading.getCos();
-//                double sin_angle = previousHeading.getSin();
-//        com.arcrobotics.ftclib.geometry.Rotation2d a =
-//                new com.arcrobotics.ftclib.geometry.Rotation2d(cos_angle, -sin_angle);
-//        currentHeadingPi2NPi = a.rotateBy(currentHeading).getDegrees();
-
-//        isSteopped = true;
         if(isSteopped)
         {
             if(telemetryEnable) {
@@ -165,16 +170,10 @@ public class MecanumDriveSubsystem extends SubsystemBase
                     backLeft_encoder.getRate(), backRight_encoder.getRate()
             );
 
-            MecanumDriveWheelPositions mecanumDriveWheelPositions = new MecanumDriveWheelPositions(
-                    frontLeft_encoder.getDistance(), frontRight_encoder.getDistance(),
-                    backLeft_encoder.getDistance(), backRight_encoder.getDistance());
-
-            // Update the pose
-            currentEstimatedPose = mecanumPoseEstimator.updateWithTime(
-                    (double) System.nanoTime() / 1E9,
-                    getGyroRotation2d(), mecanumDriveWheelPositions);
-
-            currentHeadingPi2NPi = currentEstimatedPose.getRotation().getDegrees();
+            // Update pose using RoadRunner's localizer
+            mecanumDrive.updatePoseEstimate();
+            currentEstimatedPoseRR = mecanumDrive.localizer.getPose();
+            currentHeadingPi2NPi = Math.toDegrees(currentEstimatedPoseRR.heading.toDouble());
 
         }
         DashServer.AddData("dsEtmTime", (double) System.nanoTime() / 1E9);//(double)System.currentTimeMillis()/1000.0);//
@@ -184,18 +183,19 @@ public class MecanumDriveSubsystem extends SubsystemBase
         DashServer.AddData("dsBLspd", backLeft_encoder.getRate());
         DashServer.AddData("dsBRspd", backRight_encoder.getRate());
 
-//        DashServer.AddData("dsPoseX", currentEstimatedPose.getX());
-//        DashServer.AddData("dsPoseY", currentEstimatedPose.getY());
-//        DashServer.AddData("dsPoseR", currentEstimatedPose.getRotation().getDegrees());
+        Pose2d currentEstimatedPose = roadRunnerToWpilibPose(currentEstimatedPoseRR);
+        DashServer.AddData("dsPoseX", currentEstimatedPose.getX());
+        DashServer.AddData("dsPoseY", currentEstimatedPose.getY());
+        DashServer.AddData("dsPoseR", currentEstimatedPose.getRotation().getDegrees());
 
         //mecanumPoseEstimator.addVisionMeasurement();
-        if (visionWebcamPoseEnable && (webcamApriltag != null))
-        {
-            Pose2d botPose1 = visionWebcamUpdatePose();
-            if (botPose1 != null) {
-                visionPose2dWebcam = botPose1;
-            }
-        }
+//        if (visionWebcamPoseEnable && (webcamApriltag != null))
+//        {
+//            Pose2d botPose1 = visionWebcamUpdatePose();
+//            if (botPose1 != null) {
+//                visionPose2dWebcam = botPose1;
+//            }
+//        }
         if(visionLimelightPoseEnable && (limelightApriltag != null))
         {
             Pose2d botPose2 = visionLimelightUpdatePose();
@@ -205,8 +205,8 @@ public class MecanumDriveSubsystem extends SubsystemBase
         }
 
         if(telemetryEnable) {
-            telemetry.addData("last Webcam Pose: ", visionPose2dWebcam);
-            telemetry.addLine();
+//            telemetry.addData("last Webcam Pose: ", visionPose2dWebcam);
+//            telemetry.addLine();
             telemetry.addData("last Limelight Pose: ", visionPose2dLimelight);
             telemetry.addLine();
             telemetry.addData("Robot Estimator Position: ", currentEstimatedPose);
@@ -225,10 +225,16 @@ public class MecanumDriveSubsystem extends SubsystemBase
     public void driveBySpeedEvent(MecanumDriveWheelSpeeds mecanumDriveWheelSpeeds)
     {
         mecanumDriveWheelSpeeds.desaturate(DriveConstants.MAX_VELOCITY);
-        frontLeft.set( mecanumDriveWheelSpeeds.frontLeftMetersPerSecond);/// DriveConstants.MAX_VELOCITY);
-        frontRight.set( mecanumDriveWheelSpeeds.frontRightMetersPerSecond);/// DriveConstants.MAX_VELOCITY);
-        backLeft.set( mecanumDriveWheelSpeeds.rearLeftMetersPerSecond);/// DriveConstants.MAX_VELOCITY);
-        backRight.set( mecanumDriveWheelSpeeds.rearRightMetersPerSecond);/// DriveConstants.MAX_VELOCITY);
+        
+        // Convert WPILib ChassisSpeeds to RoadRunner PoseVelocity2d
+        ChassisSpeeds chassisSpeeds = mecanumDriveKinematics.toChassisSpeeds(mecanumDriveWheelSpeeds);
+        PoseVelocity2d rrVelocity = new PoseVelocity2d(
+                new Vector2d(chassisSpeeds.vxMetersPerSecond, chassisSpeeds.vyMetersPerSecond),
+                chassisSpeeds.omegaRadiansPerSecond
+        );
+        
+        // Use RoadRunner's setDrivePowers
+        mecanumDrive.setDrivePowers(rrVelocity);
 
         askedWheelSpeeds.frontLeftMetersPerSecond = mecanumDriveWheelSpeeds.frontLeftMetersPerSecond;
         askedWheelSpeeds.frontRightMetersPerSecond = mecanumDriveWheelSpeeds.frontRightMetersPerSecond;
@@ -268,83 +274,83 @@ public class MecanumDriveSubsystem extends SubsystemBase
         if(limelightApriltag != null) limelightApriltag.stop();
     }
 
-    private Pose2d visionWebcamUpdatePose()
-    {
-        //powered USB hub is neeeded
-        //https://ftc-docs.firstinspires.org/en/latest/hardware_and_software_configuration/configuring/configuring_uvc_camera/configuring-uvc-camera.html
-        Pose2d ret = null;
-
-        List<AprilTagDetection> currentDetections = webcamApriltag.getFreshDetections();
-        //getFreshDetections();//.getDetections();
-
-        if(telemetryEnable) {
-            telemetry.addData("# AprilTags Detected: ", currentDetections.size());
-        }
-
-        if(currentDetections != null) {
-            for (AprilTagDetection detection : currentDetections) {
-                if (detection.metadata != null) {
-                    if (detection.id == ApriltagsFieldData.tag_2.id)
-                    {
-                        Pose3d tagFieldPose = new Pose3d(new Translation3d(-0.61, 0, 0.07),
-                                new Rotation3d(0, 0, 0));
-                        Transform3d tagToCamera = new Transform3d(
-                                new Translation3d(detection.ftcPose.y,
-                                        -1 * detection.ftcPose.x,
-                                        detection.ftcPose.z),
-                                new Rotation3d(Units.degreesToRadians(detection.ftcPose.roll),
-                                        Units.degreesToRadians(detection.ftcPose.pitch),
-                                        Units.degreesToRadians(detection.ftcPose.yaw)));
-
-                        Pose3d cameraFieldPose = ComputerVisionUtil.objectToRobotPose(
-                                tagFieldPose, tagToCamera, DriveConstants.CamToRobot);
-                        //tagFieldPose.transformBy(tagToCamera);
-
-                        ret = new Pose2d(-1 * cameraFieldPose.getX(),
-                                -1 * cameraFieldPose.getY(),
-                                new Rotation2d(Units.degreesToRadians(-1 * detection.ftcPose.yaw)));
-
-                        double timeAcquisition = (double)detection.frameAcquisitionNanoTime / 1E9;
-
-                        //setStdDevsWebcamPose(ret);
-                        mecanumPoseEstimator.addVisionMeasurement( ret, timeAcquisition);
-
-                        DashServer.AddData("WebcamX", ret.getX());
-                        DashServer.AddData("WebcamY", ret.getY());
-                        DashServer.AddData("WebcamR", ret.getRotation().getDegrees());
-                        DashServer.AddData("WebcamT", timeAcquisition);
-
-                        if(telemetryEnable) {
-                            //                            telemetry.addLine(String.format("ComputerVisionUtil %6.3f %6.3f %6.1f  (xyr)", -1*cameraFieldPose.getX(), -1*cameraFieldPose.getY(),
-//                                    -1*detection.ftcPose.yaw));
+//    private Pose2d visionWebcamUpdatePose()
+//    {
+//        //powered USB hub is neeeded
+//        //https://ftc-docs.firstinspires.org/en/latest/hardware_and_software_configuration/configuring/configuring_uvc_camera/configuring-uvc-camera.html
+//        Pose2d ret = null;
 //
-//                            telemetry.addLine(String.format("==== (ID %d) %s", detection.id, detection.metadata.name));
-//                telemetry.addLine(String.format("XYZ %6.3f %6.3f %6.1f  (meter)", detection.ftcPose.x, detection.ftcPose.y, detection.ftcPose.z));
-//                telemetry.addLine(String.format("PRY %6.1f %6.1f %6.2f  (deg)", detection.ftcPose.pitch, detection.ftcPose.roll, detection.ftcPose.yaw));
+//        List<AprilTagDetection> currentDetections = webcamApriltag.getFreshDetections();
+//        //getFreshDetections();//.getDetections();
 //
-//                telemetry.addLine(String.format("BOT_Bear %6.3f %6.3f %6.1f  (xyr)",
-//                        Math.cos( detection.ftcPose.bearing+detection.ftcPose.yaw)*detection.ftcPose.range,
-//                        Math.sin( detection.ftcPose.bearing+detection.ftcPose.yaw)*detection.ftcPose.range,
-//                        -1*detection.ftcPose.yaw));
+//        if(telemetryEnable) {
+//            telemetry.addData("# AprilTags Detected: ", currentDetections.size());
+//        }
 //
+//        if(currentDetections != null) {
+//            for (AprilTagDetection detection : currentDetections) {
+//                if (detection.metadata != null) {
+//                    if (detection.id == ApriltagsFieldData.tag_2.id)
+//                    {
+//                        Pose3d tagFieldPose = new Pose3d(new Translation3d(-0.61, 0, 0.07),
+//                                new Rotation3d(0, 0, 0));
+//                        Transform3d tagToCamera = new Transform3d(
+//                                new Translation3d(detection.ftcPose.y,
+//                                        -1 * detection.ftcPose.x,
+//                                        detection.ftcPose.z),
+//                                new Rotation3d(Units.degreesToRadians(detection.ftcPose.roll),
+//                                        Units.degreesToRadians(detection.ftcPose.pitch),
+//                                        Units.degreesToRadians(detection.ftcPose.yaw)));
 //
-//                // x and r ok!! need to calculate "y" by detection.ftcPose.bearing's +/-!! TODO jd
-//                telemetry.addLine(String.format("BOT %6.3f %6.3f %6.1f  (xyr)", detection.ftcPose.y, detection.ftcPose.x,
-//                        -1*detection.ftcPose.yaw)); // need to transform to field angle? JD
+//                        Pose3d cameraFieldPose = ComputerVisionUtil.objectToRobotPose(
+//                                tagFieldPose, tagToCamera, DriveConstants.CamToRobot);
+//                        //tagFieldPose.transformBy(tagToCamera);
 //
+//                        ret = new Pose2d(-1 * cameraFieldPose.getX(),
+//                                -1 * cameraFieldPose.getY(),
+//                                new Rotation2d(Units.degreesToRadians(-1 * detection.ftcPose.yaw)));
 //
-//                telemetry.addLine(String.format("RBE %6.1f %6.1f %6.1f  (inch, deg, deg)", detection.ftcPose.range, detection.ftcPose.bearing, detection.ftcPose.elevation));
-                            //telemetry.addLine("Camera FPS: " + df.format(camera.getFps()));
-                            //telemetry.addLine("Max theoretical FPS: " + df.format(camera.getCurrentPipelineMaxFps()));
-                        }
-
-                    }
-                }
-            }
-        }
-
-        return ret;
-    }
+//                        double timeAcquisition = (double)detection.frameAcquisitionNanoTime / 1E9;
+//
+//                        //setStdDevsWebcamPose(ret);
+//                        mecanumPoseEstimator.addVisionMeasurement( ret, timeAcquisition);
+//
+//                        DashServer.AddData("WebcamX", ret.getX());
+//                        DashServer.AddData("WebcamY", ret.getY());
+//                        DashServer.AddData("WebcamR", ret.getRotation().getDegrees());
+//                        DashServer.AddData("WebcamT", timeAcquisition);
+//
+//                        if(telemetryEnable) {
+//                            //                            telemetry.addLine(String.format("ComputerVisionUtil %6.3f %6.3f %6.1f  (xyr)", -1*cameraFieldPose.getX(), -1*cameraFieldPose.getY(),
+////                                    -1*detection.ftcPose.yaw));
+////
+////                            telemetry.addLine(String.format("==== (ID %d) %s", detection.id, detection.metadata.name));
+////                telemetry.addLine(String.format("XYZ %6.3f %6.3f %6.1f  (meter)", detection.ftcPose.x, detection.ftcPose.y, detection.ftcPose.z));
+////                telemetry.addLine(String.format("PRY %6.1f %6.1f %6.2f  (deg)", detection.ftcPose.pitch, detection.ftcPose.roll, detection.ftcPose.yaw));
+////
+////                telemetry.addLine(String.format("BOT_Bear %6.3f %6.3f %6.1f  (xyr)",
+////                        Math.cos( detection.ftcPose.bearing+detection.ftcPose.yaw)*detection.ftcPose.range,
+////                        Math.sin( detection.ftcPose.bearing+detection.ftcPose.yaw)*detection.ftcPose.range,
+////                        -1*detection.ftcPose.yaw));
+////
+////
+////                // x and r ok!! need to calculate "y" by detection.ftcPose.bearing's +/-!! TODO jd
+////                telemetry.addLine(String.format("BOT %6.3f %6.3f %6.1f  (xyr)", detection.ftcPose.y, detection.ftcPose.x,
+////                        -1*detection.ftcPose.yaw)); // need to transform to field angle? JD
+////
+////
+////                telemetry.addLine(String.format("RBE %6.1f %6.1f %6.1f  (inch, deg, deg)", detection.ftcPose.range, detection.ftcPose.bearing, detection.ftcPose.elevation));
+//                            //telemetry.addLine("Camera FPS: " + df.format(camera.getFps()));
+//                            //telemetry.addLine("Max theoretical FPS: " + df.format(camera.getCurrentPipelineMaxFps()));
+//                        }
+//
+//                    }
+//                }
+//            }
+//        }
+//
+//        return ret;
+//    }
 
     private static final boolean USE_3D_MAGTAG2 = false;
     private Pose2d visionLimelightUpdatePose()
@@ -449,6 +455,8 @@ public class MecanumDriveSubsystem extends SubsystemBase
     private void setStdDevsWebcamPose(Pose2d visionPose)
     {
         //frc example poseEstimator.setVisionMeasurementStdDevs(VecBuilder.fill(.5,.5,9999999));
+        // Note: RoadRunner's localizer doesn't use vision measurement std devs in the same way
+        // This method is kept for compatibility but doesn't affect RoadRunner pose estimation
         double xyStds = 0.5;
         double degStds = 999999;
 
@@ -458,8 +466,8 @@ public class MecanumDriveSubsystem extends SubsystemBase
             xyStds = 0.5;//1.0;
             degStds = 6;//12;
         }
-        mecanumPoseEstimator.setVisionMeasurementStdDevs(
-                VecBuilder.fill(xyStds, xyStds, Units.degreesToRadians(degStds)));
+        // mecanumPoseEstimator.setVisionMeasurementStdDevs(
+        //         VecBuilder.fill(xyStds, xyStds, Units.degreesToRadians(degStds)));
 
 //                            && (detection.ftcPose.z > -0.2)
 //                            && (detection.ftcPose.z < 0.2)
@@ -509,7 +517,7 @@ public class MecanumDriveSubsystem extends SubsystemBase
 
     public Pose2d getCurrentEstimatedPose()
     {
-        return mecanumPoseEstimator.getEstimatedPosition();
+        return roadRunnerToWpilibPose(mecanumDrive.localizer.getPose());
     }
 
     public MecanumDriveKinematics getKinematics()
@@ -797,15 +805,22 @@ public class MecanumDriveSubsystem extends SubsystemBase
     }
 
     /**
+     * Get the RoadRunner MecanumDrive instance for trajectory following
+     * @return The MecanumDrive instance
+     */
+    public MecanumDrive getMecanumDrive() {
+        return mecanumDrive;
+    }
+
+    /**
      * Resets the odometry to the specified pose.
      *
      * @param pose The pose to which to set the odometry.
      */
     public void resetOdometry(Pose2d pose) {
-        mecanumPoseEstimator.resetPosition(
-                getGyroRotation2d(),//m_gyro.getRotation2d(),
-                getWheelDistance(),//getCurrentWheelDistances(),
-                pose);
+        com.acmerobotics.roadrunner.Pose2d rrPose = wpilibToRoadRunnerPose(pose);
+        mecanumDrive.localizer.setPose(rrPose);
+        currentEstimatedPoseRR = rrPose;
     }
     /**
      * Drives the robot at given x, y and theta speeds. Speeds range from [-1, 1] and the linear
@@ -894,5 +909,14 @@ public class MecanumDriveSubsystem extends SubsystemBase
         angleOfRobotAndField = 0;
         gyroEx.reset();
         currentHeadingPi2NPi = 0;
+        
+        // Reset RoadRunner pose heading to zero while keeping position
+        com.acmerobotics.roadrunner.Pose2d currentPose = mecanumDrive.localizer.getPose();
+        com.acmerobotics.roadrunner.Pose2d resetPose = new com.acmerobotics.roadrunner.Pose2d(
+                currentPose.position,
+                com.acmerobotics.roadrunner.Rotation2d.fromDouble(0.0)
+        );
+        mecanumDrive.localizer.setPose(resetPose);
+        currentEstimatedPoseRR = resetPose;
     }
 }
