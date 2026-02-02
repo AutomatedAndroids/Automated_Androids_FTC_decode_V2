@@ -1,7 +1,5 @@
 package subsystems;
 
-import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.hardwareMap;
-
 import android.annotation.SuppressLint;
 
 import com.arcrobotics.ftclib.command.SubsystemBase;
@@ -90,7 +88,8 @@ public class MecanumDriveSubsystem extends SubsystemBase
             AprilTagProcessor webcamApriltag,
             Limelight3A limelightApriltag,
             Pose2d initialPose,
-            Telemetry telemetry//,
+            Telemetry telemetry,
+            HardwareMap hardwareMap//,
             //RobotDataServer dataServer
     )
     {

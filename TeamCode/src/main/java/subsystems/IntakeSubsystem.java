@@ -25,12 +25,9 @@ public class IntakeSubsystem extends SubsystemBase {
     public void sort(boolean side) { //false is left, true is right
         if (side) {
             sortArm.setPosition(middle - swing);
-            telemetry.addData("Sorting to the right", "");
         } else {
             sortArm.setPosition(middle + swing);
-            telemetry.addData("Sorting to the left", "");
         }
-        telemetry.addData("Servo Pos", sortArm.getPosition());
 
     }
 
@@ -40,12 +37,10 @@ public class IntakeSubsystem extends SubsystemBase {
 
     public void turnOnIntake() {
         intakeMotor.set(1);
-        telemetry.addData("Intake", "On");
     }
 
     public void turnOffIntake() {
         intakeMotor.set(0);
-        telemetry.addData("Intake", "Off");
     }
 
     @Override

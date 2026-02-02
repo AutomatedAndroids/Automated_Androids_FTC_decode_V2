@@ -245,7 +245,8 @@ public class AutoOpmodeMoveToPose extends CommandOpMode {
                 webcamAprilTag,
                 limelightApriltag,
                 new Pose2d(),  // Start at origin (0, 0, 0)
-                telemetry
+                telemetry,
+                hardwareMap
         );
 
         mecanumDriveSubsystem.enableDrive();

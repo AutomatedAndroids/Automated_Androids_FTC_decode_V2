@@ -319,7 +319,8 @@ public class AutoOpmodeMecanumPathPlan extends CommandOpMode {
                 webcamAprilTag,
                 limelightApriltag,
                 new edu.wpi.first.math.geometry.Pose2d(),
-                telemetry
+                telemetry,
+                hardwareMap
         );
 
         mecanumDriveSubsystem.enableDrive();

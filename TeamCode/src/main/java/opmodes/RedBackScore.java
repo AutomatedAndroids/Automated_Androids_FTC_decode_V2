@@ -1,3 +1,5 @@
+package opmodes;
+
 import com.acmerobotics.roadrunner.Pose2d;
 import com.acmerobotics.roadrunner.Vector2d;
 import com.acmerobotics.roadrunner.ftc.Actions;
@@ -21,17 +23,17 @@ import org.firstinspires.ftc.teamcode.MecanumDrive;
 
 /**
  * Sample autonomous opmode using RoadRunner actions.
- * 
+ *
  * This opmode demonstrates how to use RoadRunner's action builder to:
  * - Move forward (lineToX)
  * - Turn (turn)
  * - Move sideways (lineToY)
  * - Use splines for smooth curved paths
- * 
+ *
  * Modify the actions in runOpMode() to create your autonomous routine.
  */
-@Autonomous(name = "Auto: RoadRunner Sample", group = "Auto")
-public class AutoOpmodeRoadRunner extends LinearOpMode {
+@Autonomous(name = "Red Back Score", group = "Auto")
+public class RedBackScore extends LinearOpMode {
 
     private Motor frontLeft, frontRight, backLeft, backRight;
     private GyroEx gyro;
@@ -196,7 +198,7 @@ public class AutoOpmodeRoadRunner extends LinearOpMode {
         mecanumDrive = mecanumDriveSubsystem.getMecanumDrive();
 
         // Starting pose (in inches for RoadRunner)
-        Pose2d beginPose = new Pose2d(0, 0, 0);
+        Pose2d beginPose = new Pose2d(62, 15, Math.toRadians(180));
 
         telemetry.addData("Status", "Initialized");
         telemetry.addLine("Ready to start. Press PLAY to begin autonomous.");
@@ -211,7 +213,7 @@ public class AutoOpmodeRoadRunner extends LinearOpMode {
 
         // ===== ROADRUNNER ACTIONS =====
         // Modify these actions to create your autonomous routine
-        
+
         // APPROACH 1: Chain all actions together (recommended)
         // RoadRunner automatically uses the end pose of one action as the start of the next
         Actions.runBlocking(
