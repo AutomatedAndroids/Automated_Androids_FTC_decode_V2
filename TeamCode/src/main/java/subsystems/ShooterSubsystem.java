@@ -84,16 +84,13 @@ public class ShooterSubsystem extends SubsystemBase{
     }
 
     public void feedRight() {
-        rightFeeder.set(1);
-        rightSafety.setPosition(SERVO_BOTTOM);
+        rightFeeder.set(-1);
+        rightSafety.setPosition(SERVO_TOP);
     }
 
     public void feed() {
-
-        leftFeeder.set(1);
-        rightFeeder.set(1);
-        leftSafety.setPosition(SERVO_BOTTOM);
-        rightSafety.setPosition(SERVO_BOTTOM);
+        feedLeft();
+        feedRight();
     }
 
     public void stopLeft() {
@@ -105,15 +102,12 @@ public class ShooterSubsystem extends SubsystemBase{
     public void stopRight() {
         rightFeeder.set(-0.001);
         // Ensures velocity is cleared
-        rightSafety.setPosition(SERVO_TOP);
+        rightSafety.setPosition(SERVO_BOTTOM);
     }
 
     public void stopFeeding() {
-        leftFeeder.set(-0.001);
-        rightFeeder.set(-0.001);
-        // Ensures velocity is cleared
-        leftSafety.setPosition(SERVO_TOP);
-        rightSafety.setPosition(SERVO_TOP);
+        stopLeft();
+        stopRight();
     }
 
     public void stopFlywheels() {
@@ -126,24 +120,15 @@ public class ShooterSubsystem extends SubsystemBase{
     }
 
     public void decreaseShootClose(){
-        TARGET_RPM_CLOSE -= 0.01;
+        TARGET_RPM_CLOSE -= 50;
     }
 
     public void increaseShootFar(){
-        TARGET_RPM_FAR += 0.01;
+        TARGET_RPM_FAR += 50;
     }
 
     public void decreaseShootFar(){
-        TARGET_RPM_FAR -= 0.01;
-    }
-
-
-    public double getShootClose(){
-        return TARGET_RPM_CLOSE;
-    }
-
-    public double getShootFar() {
-        return TARGET_RPM_FAR;
+        TARGET_RPM_FAR -= 50;
     }
 
     /**
