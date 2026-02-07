@@ -240,8 +240,8 @@ public class RedBackScore extends LinearOpMode {
         initShooter();
 
         // Initialize the drive subsystem (pass null for webcam since we're using Limelight)
-        Pose2d beginPose = new Pose2d(-50, -50, 41*Math.PI/32);
-        edu.wpi.first.math.geometry.Pose2d bpWpi = new edu.wpi.first.math.geometry.Pose2d( -50, -50, new edu.wpi.first.math.geometry.Rotation2d(41*Math.PI/32));
+        Pose2d beginPose = new Pose2d(62, 15, Math.PI);
+        edu.wpi.first.math.geometry.Pose2d bpWpi = new edu.wpi.first.math.geometry.Pose2d( 62, 15, new edu.wpi.first.math.geometry.Rotation2d(Math.PI));
         mecanumDriveSubsystem = new MecanumDriveSubsystem(
                 frontLeft,
                 frontRight,
@@ -304,7 +304,7 @@ public class RedBackScore extends LinearOpMode {
         // APPROACH 1: Chain all actions together (recommended)
         // RoadRunner automatically uses the end pose of one action as the start of the next
 
-        VelConstraint slowVel = new TranslationalVelConstraint(15);
+        VelConstraint slowVel = new TranslationalVelConstraint(10);
 
 
         Actions.runBlocking(
@@ -312,10 +312,10 @@ public class RedBackScore extends LinearOpMode {
                         shooterSubsystem.shoot_close(),
 
                         mecanumDrive.actionBuilder(beginPose)
-                                .strafeToSplineHeading(DriveCoords.RedShootClose.position, DriveCoords.RedShootClose.heading)
+                                .lineToXSplineHeading(DriveCoords.RedShootClose.position.x, DriveCoords.RedShootClose.heading)
                                 .build(),
 
-                        new SleepAction(1),
+                        new SleepAction(3),
 
                         shooterSubsystem.feed(),
 
@@ -326,8 +326,8 @@ public class RedBackScore extends LinearOpMode {
                         shooterSubsystem.stopFeeding(),
 
                         mecanumDrive.actionBuilder(DriveCoords.RedShootClose)
-                                .strafeToSplineHeading(DriveCoords.RedPickup3.position, DriveCoords.RedPickup3.heading)
-                                .build(),
+                                        .strafeToSplineHeading(DriveCoords.RedPickup3.position, DriveCoords.RedPickup3.heading)
+                                        .build(),
 
                         new ParallelAction(
                                 intakeSubsystem.turnOnIntake(),
@@ -339,7 +339,7 @@ public class RedBackScore extends LinearOpMode {
 
                         mecanumDrive.actionBuilder(DriveCoords.RedPickup3End)
                                 .strafeTo(DriveCoords.RedPickup3.position)
-                                .build(),
+                            .build(),
 
                         intakeSubsystem.turnOffIntake(),
 

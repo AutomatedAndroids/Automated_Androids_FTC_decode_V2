@@ -6,14 +6,14 @@ import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
 
 import subsystems.MecanumDriveSubsystem;
-import util.OldDriverFilter2;
-import util.filters.DeadbandFilter;
-import util.filters.FilterSeries;
-import util.filters.ScaleFilter;
 
 public class DriverJoystickCommand extends CommandBase {
 
     private final MecanumDriveSubsystem m_drive;
+    
+    // Speed multipliers to maximize robot performance
+    private static final double ROTATION_SPEED_MULTIPLIER = 2.5;  // Increased from 1.5 for faster rotation
+    private static final double LINEAR_SPEED_MULTIPLIER = 2.5;  // Multiplier for x/y movement speed
 
     DoubleSupplier xSpdSupplier;
     DoubleSupplier ySpdSupplier;
@@ -88,28 +88,16 @@ public class DriverJoystickCommand extends CommandBase {
         double ySpeed = ySpdSupplier.getAsDouble();
         double rotationSpeed = rotationSpdSupplier.getAsDouble();
 
-        OldDriverFilter2 xFilter = new OldDriverFilter2(
-                0.05,//ControllerConstants.kDeadband,
-                0.05,//kMinimumMotorOutput,
-                5,//kTeleDriveMaxSpeedMetersPerSecond,
-                0.11765,//kDriveAlpha,
-                5,//kTeleMaxAcceleration,
-                -5);//kTeleMaxDeceleration);
-        OldDriverFilter2 yFilter = new OldDriverFilter2(
-                0.05,//ControllerConstants.kDeadband,
-                0.05,//kMinimumMotorOutput,
-                5,//kTeleDriveMaxSpeedMetersPerSecond,
-                0.11765,//kDriveAlpha,
-                5,//kTeleMaxAcceleration,
-                -5);//kTeleMaxDeceleration);
-        FilterSeries turningFilter = new FilterSeries(
-                new DeadbandFilter(0.1),//ControllerConstants.kRotationDeadband),
-                new ScaleFilter(12.566)//kTeleDriveMaxAngularSpeedRadiansPerSecond)
-        );
-
-        double filteredXSpeed = xFilter.calculate(xSpeed);
-        double filteredYSpeed = yFilter.calculate(ySpeed);
-        double filteredTurningSpeed;
+        // Apply simple deadband filtering (filters were causing issues - removed)
+        // Deadband for x/y movement
+        if (Math.abs(xSpeed) < 0.05) xSpeed = 0.0;
+        if (Math.abs(ySpeed) < 0.05) ySpeed = 0.0;
+        // Deadband for rotation
+        if (Math.abs(rotationSpeed) < 0.1) rotationSpeed = 0.0;
+        
+        double filteredXSpeed = xSpeed;
+        double filteredYSpeed = ySpeed;
+        double filteredTurningSpeed = rotationSpeed;
 
         // Retrieve current heading and control mode states
         double currentHeading = currentHeadingSupplier.getAsDouble();
@@ -121,25 +109,18 @@ public class DriverJoystickCommand extends CommandBase {
             m_drive.setFieledRelative(false);
         }
 
-        boolean towMode = towLeftSupplier.getAsBoolean() || towRightSupplier.getAsBoolean();
+        // Tow mode and precision mode disabled - always use maximum performance
+        boolean towMode = false;  // Disabled - never turns on
+        double precisionMode = 0.0;  // Disabled - never turns on
 
-        double precisionMode = Math.max(
-                precisionLeftSupplier.getAsDouble(), precisionRightSupplier.getAsDouble() );
-        if (precisionMode > 0.001) {
-            precisionMode = Math.abs(1-precisionMode);
-            if(precisionMode < 0.1) precisionMode = 0.1;
-            m_drive.setMaxOutput(precisionMode);
-        }
-        else{
-            m_drive.setMaxOutput(MecanumDriveSubsystem.kDefaultMaxOutput);
-        }
-
-        // Implement tow mode adjustments
-        if (towMode) {
-            xSpeed *= 0.001;  // Reduce speed for towing
-            ySpeed *= 0.001;
-            rotationSpeed *= 0.001;
-        }
+        // Increase max output to allow higher speeds (this multiplies the final motor output)
+        // Using 2.5x to match the speed multiplier
+        m_drive.setMaxOutput(2.5);
+        
+        // Apply rotation speed multiplier directly to rotation input
+        filteredTurningSpeed *= ROTATION_SPEED_MULTIPLIER;
+        // Clamp rotation speed to valid range [-1.0, 1.0] for drive method
+        filteredTurningSpeed = Math.max(-1.0, Math.min(1.0, filteredTurningSpeed));
 
         // Handling combinations of directional inputs
         boolean forward = turnToForwardSupplier.getAsBoolean();
@@ -184,8 +165,8 @@ public class DriverJoystickCommand extends CommandBase {
             m_drive.adjustToHeading(targetAutoHeading, currentHeadingSupplier.getAsDouble());
             doAutoHeading = false; // Reset the flag after adjustment begins
         } else {
-            // Continue with the regular driving command
-            m_drive.drive(xSpeed, ySpeed, rotationSpeed, false, currentHeadingSupplier.getAsDouble());
+            // Continue with the regular driving command - use filtered speeds for maximum performance
+            m_drive.drive(filteredXSpeed, filteredYSpeed, filteredTurningSpeed, false, currentHeadingSupplier.getAsDouble());
         }
     }
 }

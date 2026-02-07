@@ -25,10 +25,11 @@ public class DriveConstants {
     public static double ZETA = 0.7;
     // end DiffDrive Ctrl Coeff
 
-    public static double MAX_VELOCITY = 1.0;
-    public static double MAX_ACCELERATION = 1.0;//0.5;//1.5;
+    // Maximized for maximum robot speed
+    public static double MAX_VELOCITY = 5.0;  // Increased from 1.0 to 5.0 m/s
+    public static double MAX_ACCELERATION = 5.0;  // Increased from 1.0 to 5.0 m/s²
 
-    public static double TRAJECTORY_MAX_VELOCITY = 1.0;//1.5;//0.5;
+    public static double TRAJECTORY_MAX_VELOCITY = 5.0;  // Increased from 1.0 to 5.0 m/s
 
     public static MecanumDriveKinematics kinematicsWPI =
                 new MecanumDriveKinematics (
