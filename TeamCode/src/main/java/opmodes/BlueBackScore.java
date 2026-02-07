@@ -50,7 +50,7 @@ import org.firstinspires.ftc.teamcode.MecanumDrive;
  */
 
 
-@Autonomous(name = "Blue Back Score bsdhfsbjdhfb", group = "Auto")
+@Autonomous(name = "Blue Back Score", group = "Auto")
 public class BlueBackScore extends LinearOpMode {
 
     private IntakeSubsystem intakeSubsystem;
@@ -304,7 +304,7 @@ public class BlueBackScore extends LinearOpMode {
         // APPROACH 1: Chain all actions together (recommended)
         // RoadRunner automatically uses the end pose of one action as the start of the next
 
-        VelConstraint slowVel = new TranslationalVelConstraint(15);
+        VelConstraint slowVel = new TranslationalVelConstraint(10);
 
 
         Actions.runBlocking(
@@ -315,7 +315,7 @@ public class BlueBackScore extends LinearOpMode {
                                 .lineToXSplineHeading(DriveCoords.BlueShootClose.position.x, DriveCoords.BlueShootClose.heading)
                                 .build(),
 
-                        new SleepAction(1),
+                        new SleepAction(3),
 
                         shooterSubsystem.feed(),
 

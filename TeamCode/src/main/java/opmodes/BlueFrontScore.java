@@ -304,7 +304,7 @@ public class BlueFrontScore extends LinearOpMode {
         // APPROACH 1: Chain all actions together (recommended)
         // RoadRunner automatically uses the end pose of one action as the start of the next
 
-        VelConstraint slowVel = new TranslationalVelConstraint(15);
+        VelConstraint slowVel = new TranslationalVelConstraint(10);
 
 
         Actions.runBlocking(
@@ -315,35 +315,35 @@ public class BlueFrontScore extends LinearOpMode {
                                 .strafeToSplineHeading(DriveCoords.BlueShootClose.position, DriveCoords.BlueShootClose.heading)
                                 .build(),
 
-                        new SleepAction(1),
+                        new SleepAction(4),
 
                         shooterSubsystem.feed(),
 
                         intakeSubsystem.turnOnIntake(),
 
-                        new SleepAction(4),
+                        new SleepAction(3),
 
                         shooterSubsystem.stopFeeding(),
 
                         mecanumDrive.actionBuilder(DriveCoords.BlueShootClose)
-                                .strafeToSplineHeading(DriveCoords.BluePickup3.position, DriveCoords.BluePickup3.heading)
+                                .strafeToSplineHeading(DriveCoords.BluePickup1.position, DriveCoords.BluePickup1.heading)
                                 .build(),
 
                         new ParallelAction(
                                 intakeSubsystem.turnOnIntake(),
 
-                                mecanumDrive.actionBuilder(DriveCoords.BluePickup3)
-                                        .lineToY(DriveCoords.BluePickup3End.position.y, slowVel)
+                                mecanumDrive.actionBuilder(DriveCoords.BluePickup1)
+                                        .lineToY(DriveCoords.BluePickup1End.position.y, slowVel)
                                         .build()
                         ),
 
-                        mecanumDrive.actionBuilder(DriveCoords.BluePickup3End)
-                                .strafeTo(DriveCoords.BluePickup3.position)
+                        mecanumDrive.actionBuilder(DriveCoords.BluePickup1End)
+                                .strafeTo(DriveCoords.BluePickup1.position)
                                 .build(),
 
                         intakeSubsystem.turnOffIntake(),
 
-                        mecanumDrive.actionBuilder(DriveCoords.BluePickup3)
+                        mecanumDrive.actionBuilder(DriveCoords.BluePickup1)
                                 .strafeToSplineHeading(DriveCoords.BlueShootClose.position, DriveCoords.BlueShootClose.heading)
                                 .build(),
 
@@ -363,7 +363,7 @@ public class BlueFrontScore extends LinearOpMode {
                                 intakeSubsystem.turnOnIntake(),
 
                                 mecanumDrive.actionBuilder(DriveCoords.BluePickup2)
-                                        .lineToY(DriveCoords.BluePickup2End.position.y, slowVel)
+                                        .lineToY(DriveCoords.BluePickup2End.position.y)
                                         .build()
                         ),
 
