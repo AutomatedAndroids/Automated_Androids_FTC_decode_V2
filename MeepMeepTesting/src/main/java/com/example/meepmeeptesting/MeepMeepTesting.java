@@ -21,13 +21,8 @@ public class MeepMeepTesting {
                 .setConstraints(60, 60, Math.toRadians(180), Math.toRadians(180), 15)
                 .build();
 
-        Vector2d shootBlue = new Vector2d(-16, 0);
-        Vector2d pickUpBlueFar = new Vector2d(-18, 0);
-        Vector2d pickUpBlueMid = new Vector2d(-18, 0);
-        Vector2d pickUpBlueNear = new Vector2d(-18, 0);
-
-        myBot.runAction(myBot.getDrive().actionBuilder(new Pose2d(62, -15, Math.toRadians(180)))
-                        .lineToXSplineHeading(-16,5*Math.PI/4)
+        myBot.runAction(myBot.getDrive().actionBuilder(new Pose2d(-50, -50, 41*Math.PI/32))
+                        .strafeToSplineHeading(new Vector2d(-16, -16), 5*Math.PI/4)
 //                        .strafeTo(new Vector2d(-12, -20))
 //                        .strafeTo(new Vector2d(12, -20))
                         .strafeToSplineHeading(new Vector2d(35, -20), 3*Math.PI/2)

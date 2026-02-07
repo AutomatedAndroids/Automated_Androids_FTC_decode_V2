@@ -1,14 +1,28 @@
 package opmodes;
 
+import com.acmerobotics.roadrunner.Action;
+import com.acmerobotics.roadrunner.ParallelAction;
 import com.acmerobotics.roadrunner.Pose2d;
+import com.acmerobotics.roadrunner.SequentialAction;
+import com.acmerobotics.roadrunner.SleepAction;
+import com.acmerobotics.roadrunner.TranslationalVelConstraint;
 import com.acmerobotics.roadrunner.Vector2d;
+import com.acmerobotics.roadrunner.VelConstraint;
 import com.acmerobotics.roadrunner.ftc.Actions;
+import com.arcrobotics.ftclib.command.ParallelRaceGroup;
+import com.arcrobotics.ftclib.command.WaitCommand;
 import com.arcrobotics.ftclib.hardware.GyroEx;
+import com.arcrobotics.ftclib.hardware.motors.CRServo;
 import com.arcrobotics.ftclib.hardware.motors.Motor;
 
 import Config.DriveConstants;
+import opmodes.DriveCoords;
+import subsystems.IntakeSubsystem;
 import subsystems.MecanumDriveSubsystem;
+import subsystems.ShooterSubsystem;
 
+
+import com.arcrobotics.ftclib.hardware.motors.MotorEx;
 import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
@@ -19,6 +33,8 @@ import com.qualcomm.robotcore.hardware.IMU;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 import com.qualcomm.hardware.limelightvision.Limelight3A;
+import com.qualcomm.robotcore.hardware.Servo;
+
 import org.firstinspires.ftc.teamcode.MecanumDrive;
 
 /**
@@ -32,10 +48,18 @@ import org.firstinspires.ftc.teamcode.MecanumDrive;
  *
  * Modify the actions in runOpMode() to create your autonomous routine.
  */
+
+
 @Autonomous(name = "Red Back Score", group = "Auto")
 public class RedBackScore extends LinearOpMode {
 
-    private Motor frontLeft, frontRight, backLeft, backRight;
+    private IntakeSubsystem intakeSubsystem;
+    private ShooterSubsystem shooterSubsystem;
+
+    private Motor frontLeft, frontRight, backLeft, backRight, intakeMotor;
+    private MotorEx shooterMotor;
+    private Servo sortArm, leftSafety, rightSafety;
+    private CRServo leftFeeder, rightFeeder;
     private GyroEx gyro;
     private Limelight3A limelightApriltag;
     private MecanumDriveSubsystem mecanumDriveSubsystem;
@@ -171,14 +195,53 @@ public class RedBackScore extends LinearOpMode {
         limelightApriltag.start();
     }
 
+    private void initIntake()
+    {
+        try {
+            intakeMotor = new Motor(hardwareMap, "intake");
+            sortArm = hardwareMap.get(Servo.class, "sortArm");
+
+        } catch (Exception e) {
+            telemetry.addData("Warning", "Intake failed to init");
+            telemetry.addData("Warning", e);
+            telemetry.update();
+            intakeMotor = null;
+            sortArm = null;
+        }
+    }
+
+    private void initShooter()
+    {
+        try {
+            shooterMotor = new MotorEx(hardwareMap, "shooter");
+            leftFeeder  = new CRServo(hardwareMap, "leftFeeder");
+            rightFeeder = new CRServo(hardwareMap, "rightFeeder");
+            leftSafety = hardwareMap.get(Servo.class, "leftSafety");
+            rightSafety = hardwareMap.get(Servo.class, "rightSafety");
+        } catch (Exception e) {
+            telemetry.addData("Warning", "Shooter failed to init");
+            telemetry.addData("Warning", e);
+            telemetry.update();
+            shooterMotor = null;
+            leftFeeder = null;
+            rightFeeder = null;
+            leftSafety = null;
+            rightSafety = null;
+        }
+    }
+
     @Override
     public void runOpMode() throws InterruptedException {
         // Initialize hardware
         initDriveWheels();
         initGyro();
         initLimelight();
+        initIntake();
+        initShooter();
 
         // Initialize the drive subsystem (pass null for webcam since we're using Limelight)
+        Pose2d beginPose = new Pose2d(-50, -50, 41*Math.PI/32);
+        edu.wpi.first.math.geometry.Pose2d bpWpi = new edu.wpi.first.math.geometry.Pose2d( -50, -50, new edu.wpi.first.math.geometry.Rotation2d(41*Math.PI/32));
         mecanumDriveSubsystem = new MecanumDriveSubsystem(
                 frontLeft,
                 frontRight,
@@ -187,10 +250,34 @@ public class RedBackScore extends LinearOpMode {
                 gyro,
                 null,  // No webcam - using Limelight instead
                 limelightApriltag,
-                new edu.wpi.first.math.geometry.Pose2d(),  // Start at origin
+                bpWpi,
                 telemetry,
                 hardwareMap
         );
+
+        if (intakeMotor != null && sortArm != null) {
+            intakeSubsystem = new IntakeSubsystem(
+                    intakeMotor,
+                    sortArm,
+                    telemetry
+            );
+        } else {
+            intakeSubsystem = null;
+        }
+
+        if (shooterMotor != null && leftFeeder != null && rightFeeder != null &&
+                leftSafety != null && rightSafety != null) {
+            shooterSubsystem = new ShooterSubsystem(
+                    leftFeeder,
+                    rightFeeder,
+                    shooterMotor,
+                    leftSafety,
+                    rightSafety,
+                    telemetry
+            );
+        } else {
+            shooterSubsystem = null;
+        }
 
         mecanumDriveSubsystem.enableDrive();
 
@@ -198,7 +285,7 @@ public class RedBackScore extends LinearOpMode {
         mecanumDrive = mecanumDriveSubsystem.getMecanumDrive();
 
         // Starting pose (in inches for RoadRunner)
-        Pose2d beginPose = new Pose2d(62, 15, Math.toRadians(180));
+
 
         telemetry.addData("Status", "Initialized");
         telemetry.addLine("Ready to start. Press PLAY to begin autonomous.");
@@ -216,14 +303,103 @@ public class RedBackScore extends LinearOpMode {
 
         // APPROACH 1: Chain all actions together (recommended)
         // RoadRunner automatically uses the end pose of one action as the start of the next
+
+        VelConstraint slowVel = new TranslationalVelConstraint(15);
+
+
         Actions.runBlocking(
-                mecanumDrive.actionBuilder(beginPose)
-                        .lineToX(24)                    // Move forward 24 inches
-                        .splineTo(new Vector2d(0, 0), Math.PI / 2)  // Smooth curve
-                        .turn(Math.toRadians(45))
-                        .build());
+                new SequentialAction(
+                        shooterSubsystem.shoot_close(),
+
+                        mecanumDrive.actionBuilder(beginPose)
+                                .strafeToSplineHeading(DriveCoords.RedShootClose.position, DriveCoords.RedShootClose.heading)
+                                .build(),
+
+                        new SleepAction(1),
+
+                        shooterSubsystem.feed(),
+
+                        intakeSubsystem.turnOnIntake(),
+
+                        new SleepAction(4),
+
+                        shooterSubsystem.stopFeeding(),
+
+                        mecanumDrive.actionBuilder(DriveCoords.RedShootClose)
+                                .strafeToSplineHeading(DriveCoords.RedPickup3.position, DriveCoords.RedPickup3.heading)
+                                .build(),
+
+                        new ParallelAction(
+                                intakeSubsystem.turnOnIntake(),
+
+                                mecanumDrive.actionBuilder(DriveCoords.RedPickup3)
+                                        .lineToY(DriveCoords.RedPickup3End.position.y, slowVel)
+                                        .build()
+                        ),
+
+                        mecanumDrive.actionBuilder(DriveCoords.RedPickup3End)
+                                .strafeTo(DriveCoords.RedPickup3.position)
+                                .build(),
+
+                        intakeSubsystem.turnOffIntake(),
+
+                        mecanumDrive.actionBuilder(DriveCoords.RedPickup3)
+                                .strafeToSplineHeading(DriveCoords.RedShootClose.position, DriveCoords.RedShootClose.heading)
+                                .build(),
+
+                        shooterSubsystem.feed(),
+
+                        intakeSubsystem.turnOnIntake(),
+
+                        new SleepAction(3.5),
+
+                        shooterSubsystem.stopFeeding(),
+
+                        mecanumDrive.actionBuilder(DriveCoords.RedShootClose)
+                                .strafeToSplineHeading(DriveCoords.RedPickup2.position, DriveCoords.RedPickup2.heading)
+                                .build(),
+
+                        new ParallelAction(
+                                intakeSubsystem.turnOnIntake(),
+
+                                mecanumDrive.actionBuilder(DriveCoords.RedPickup2)
+                                        .lineToY(DriveCoords.RedPickup2End.position.y, slowVel)
+                                        .build()
+                        ),
+
+                        mecanumDrive.actionBuilder(DriveCoords.RedPickup2End)
+                                .strafeTo(DriveCoords.RedPickup2.position)
+                                .build(),
+
+                        intakeSubsystem.turnOffIntake(),
+
+                        mecanumDrive.actionBuilder(DriveCoords.RedPickup2)
+                                .strafeToSplineHeading(DriveCoords.RedShootClose.position, DriveCoords.RedShootClose.heading)
+                                .build(),
+
+                        shooterSubsystem.feed(),
+
+                        intakeSubsystem.turnOnIntake(),
+
+                        new SleepAction(3.5)
+                )
+
+        );
 
 
+        /*Actions.runBlocking(
+                new SequentialAction(
+                        drive.actionBuilder(startPose)
+                                .lineToYSplineHeading(40, Math.toRadians(90))
+                                .build(),
+
+                        lift.dropCubeAction(), // Your subsystem code here
+
+                        drive.actionBuilder(new Pose2d(0, 40, Math.toRadians(90)))
+                                .lineToY(0)
+                                .build()
+                )
+        );*/
 
         // APPROACH 2: Separate actions (get current pose between actions)
         // Uncomment this section and comment out APPROACH 1 to use separate actions
