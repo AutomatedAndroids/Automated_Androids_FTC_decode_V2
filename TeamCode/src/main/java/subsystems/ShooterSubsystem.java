@@ -165,6 +165,18 @@ public class ShooterSubsystem extends SubsystemBase {
 
     }
 
+    public void shootClose() {
+        shooterMotor.setVelocity((TARGET_RPM_CLOSE / 60.0) * TICKS_PER_REV);
+    }
+
+    public void shootFar() {
+        shooterMotor.setVelocity((TARGET_RPM_FAR / 60.0) * TICKS_PER_REV);
+    }
+
+    public void stopFlywheelsManual() {
+        shooterMotor.setVelocity(0);
+    }
+
     public void increaseShootClose() { TARGET_RPM_CLOSE += 50; }
     public void decreaseShootClose() { TARGET_RPM_CLOSE -= 50; }
     public void increaseShootFar() { TARGET_RPM_FAR += 50; }

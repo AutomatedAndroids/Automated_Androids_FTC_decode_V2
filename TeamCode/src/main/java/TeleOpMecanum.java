@@ -507,16 +507,16 @@ public class TeleOpMecanum extends CommandOpMode {
 
         // --- OPERATOR CONTROLS ---
 
-        // Flywheel Spin Up (A = Shoot Far, B = Stop)
+        // Flywheel Spin Up (A = Shoot Close, Right Trigger = Shoot Far, B = Stop)
         if (shooterSubsystem != null) {
             operatorOp.getGamepadButton(GamepadKeys.Button.A)
-                    .whenPressed(new InstantCommand(shooterSubsystem::shoot_close));
+                    .whenPressed(new InstantCommand(shooterSubsystem::shootClose));
 
             new Trigger(() -> operatorOp.getTrigger(GamepadKeys.Trigger.RIGHT_TRIGGER) > 0)
-                    .whileActiveOnce(new InstantCommand(shooterSubsystem::shoot_far));
+                    .whileActiveOnce(new InstantCommand(shooterSubsystem::shootFar));
 
             operatorOp.getGamepadButton(GamepadKeys.Button.B)
-                    .whenPressed(new InstantCommand(shooterSubsystem::stopFlywheels));
+                    .whenPressed(new InstantCommand(shooterSubsystem::stopFlywheelsManual));
         }
         else {
             telemetry.addData("the shooter substsem didn't init js btw, lowk nothing u can do...", 0);
