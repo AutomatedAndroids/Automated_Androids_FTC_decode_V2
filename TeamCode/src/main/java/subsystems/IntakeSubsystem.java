@@ -51,7 +51,7 @@ public class IntakeSubsystem extends SubsystemBase {
      * Moves the sort arm to the specific side.
      * @param side false for left (middle + swing), true for right (middle - swing)
      */
-    public Action sortSide(boolean side) {
+    public Action sort(boolean side) {
         return packet -> {
             if (side) {
                 sortArm.setPosition(middle - swing);

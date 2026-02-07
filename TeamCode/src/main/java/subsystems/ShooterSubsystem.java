@@ -21,7 +21,7 @@ public class ShooterSubsystem extends SubsystemBase {
 
     // --- CONFIGURATION ---
     private static final double TICKS_PER_REV = 28.0;
-    private static double TARGET_RPM_CLOSE = 2750;
+    private static double TARGET_RPM_CLOSE = 2500;
     private static double TARGET_RPM_FAR = 3000;
     private static final double SERVO_BOTTOM = 0.25;
     private static final double SERVO_TOP = 0.5;
@@ -40,7 +40,7 @@ public class ShooterSubsystem extends SubsystemBase {
         // Configure Motor for Velocity Control
         shooterMotor.setRunMode(Motor.RunMode.VelocityControl);
         this.shooterMotor.setZeroPowerBehavior(Motor.ZeroPowerBehavior.FLOAT);
-        this.shooterMotor.setVeloCoefficients(0.05, 0, 0);
+        this.shooterMotor.setVeloCoefficients(0.3, 0, 0);
     }
 
     // --------------------------------------------------------

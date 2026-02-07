@@ -1,10 +1,16 @@
 package com.example.meepmeeptesting;
 
+import com.acmerobotics.roadrunner.Arclength;
 import com.acmerobotics.roadrunner.Pose2d;
+import com.acmerobotics.roadrunner.Pose2dDual;
+import com.acmerobotics.roadrunner.PosePath;
 import com.acmerobotics.roadrunner.Vector2d;
+import com.acmerobotics.roadrunner.VelConstraint;
 import com.noahbres.meepmeep.MeepMeep;
 import com.noahbres.meepmeep.roadrunner.DefaultBotBuilder;
 import com.noahbres.meepmeep.roadrunner.entity.RoadRunnerBotEntity;
+
+import org.jetbrains.annotations.NotNull;
 
 public class MeepMeepTesting {
     public static void main(String[] args) {
@@ -22,10 +28,12 @@ public class MeepMeepTesting {
 
         myBot.runAction(myBot.getDrive().actionBuilder(new Pose2d(62, -15, Math.toRadians(180)))
                         .lineToXSplineHeading(-16,5*Math.PI/4)
-                        .turn(Math.PI/4)
-                        .strafeTo(new Vector2d(-12, -20))
-                        .strafeTo(new Vector2d(12, -20))
-                        .strafeTo(new Vector2d(36, -20))
+//                        .strafeTo(new Vector2d(-12, -20))
+//                        .strafeTo(new Vector2d(12, -20))
+                        .strafeToSplineHeading(new Vector2d(35, -20), 3*Math.PI/2)
+                        .strafeTo(new Vector2d(35, -55))
+                        .lineToYSplineHeading(-20, Math.PI)
+                        .strafeToSplineHeading(new Vector2d(-16, -15), 5*Math.PI/4)
 
                 .build()
         );

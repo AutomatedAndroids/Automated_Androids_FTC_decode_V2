@@ -518,6 +518,9 @@ public class TeleOpMecanum extends CommandOpMode {
             operatorOp.getGamepadButton(GamepadKeys.Button.B)
                     .whenPressed(new InstantCommand(shooterSubsystem::stopFlywheels));
         }
+        else {
+            telemetry.addData("the shooter substsem didn't init js btw, lowk nothing u can do...", 0);
+        }
 
         // Sort Arm (Bumpers)
         if (intakeSubsystem != null) {

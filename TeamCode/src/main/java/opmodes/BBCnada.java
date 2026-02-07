@@ -50,8 +50,8 @@ import org.firstinspires.ftc.teamcode.MecanumDrive;
  */
 
 
-@Autonomous(name = "Blue Back Score bsdhfsbjdhfb", group = "Auto")
-public class BlueBackScore extends LinearOpMode {
+@Autonomous(name = "Yo BBC!", group = "Auto")
+public class BBCnada extends LinearOpMode {
 
     private IntakeSubsystem intakeSubsystem;
     private ShooterSubsystem shooterSubsystem;
@@ -304,7 +304,7 @@ public class BlueBackScore extends LinearOpMode {
         // APPROACH 1: Chain all actions together (recommended)
         // RoadRunner automatically uses the end pose of one action as the start of the next
 
-        VelConstraint slowVel = new TranslationalVelConstraint(15);
+        VelConstraint slowVel = new TranslationalVelConstraint(5);
 
 
         Actions.runBlocking(
@@ -315,73 +315,32 @@ public class BlueBackScore extends LinearOpMode {
                                 .lineToXSplineHeading(DriveCoords.BlueShootClose.position.x, DriveCoords.BlueShootClose.heading)
                                 .build(),
 
-                        new SleepAction(1),
-
-                        shooterSubsystem.feed(),
-
-                        intakeSubsystem.turnOnIntake(),
-
-                        new SleepAction(4),
-
-                        shooterSubsystem.stopFeeding(),
-
-                        mecanumDrive.actionBuilder(DriveCoords.BlueShootClose)
-                                        .strafeToSplineHeading(DriveCoords.BluePickup3.position, DriveCoords.BluePickup3.heading)
-                                        .build(),
-
-                        new ParallelAction(
-                                intakeSubsystem.turnOnIntake(),
-
-                                mecanumDrive.actionBuilder(DriveCoords.BluePickup3)
-                                        .lineToY(DriveCoords.BluePickup3End.position.y, slowVel)
-                                        .build()
-                        ),
-
-                        mecanumDrive.actionBuilder(DriveCoords.BluePickup3End)
-                                .strafeTo(DriveCoords.BluePickup3.position)
-                            .build(),
-
-                        intakeSubsystem.turnOffIntake(),
-
-                        mecanumDrive.actionBuilder(DriveCoords.BluePickup3)
-                                .strafeToSplineHeading(DriveCoords.BlueShootClose.position, DriveCoords.BlueShootClose.heading)
-                                .build(),
-
-                        shooterSubsystem.feed(),
-
-                        intakeSubsystem.turnOnIntake(),
-
-                        new SleepAction(3.5),
-
-                        shooterSubsystem.stopFeeding(),
-
-                        mecanumDrive.actionBuilder(DriveCoords.BlueShootClose)
-                                .strafeToSplineHeading(DriveCoords.BluePickup2.position, DriveCoords.BluePickup2.heading)
-                                .build(),
-
-                        new ParallelAction(
-                                intakeSubsystem.turnOnIntake(),
-
-                                mecanumDrive.actionBuilder(DriveCoords.BluePickup2)
-                                        .lineToY(DriveCoords.BluePickup2End.position.y, slowVel)
-                                        .build()
-                        ),
-
-                        mecanumDrive.actionBuilder(DriveCoords.BluePickup2End)
-                                .strafeTo(DriveCoords.BluePickup2.position)
-                                .build(),
-
-                        intakeSubsystem.turnOffIntake(),
-
-                        mecanumDrive.actionBuilder(DriveCoords.BluePickup2)
-                                .strafeToSplineHeading(DriveCoords.BlueShootClose.position, DriveCoords.BlueShootClose.heading)
-                                .build(),
-
                         shooterSubsystem.feed(),
 
                         intakeSubsystem.turnOnIntake(),
 
                         new SleepAction(3.5)
+
+//                        shooterSubsystem.stopFeeding(),
+//
+//                        mecanumDrive.actionBuilder(DriveCoords.BlueShootClose)
+//                                .strafeToSplineHeading(DriveCoords.BluePickup3.position, DriveCoords.BluePickup3.heading)
+//                                .build(),
+//
+//                        new ParallelAction(
+//                                intakeSubsystem.turnOnIntake(),
+//
+//                                mecanumDrive.actionBuilder(DriveCoords.BluePickup3)
+//                                        .lineToY(DriveCoords.BluePickup3End.position.y, slowVel)
+//                                        .build()
+//                        ),
+//
+//                        mecanumDrive.actionBuilder(DriveCoords.BluePickup3End)
+//                                .lineToY(DriveCoords.BluePickup3.position.y)
+//                                .strafeToSplineHeading(DriveCoords.BlueShootClose.position, DriveCoords.BlueShootClose.heading)
+//                                .build(),
+//
+//                        shooterSubsystem.feed()
                 )
 
         );
