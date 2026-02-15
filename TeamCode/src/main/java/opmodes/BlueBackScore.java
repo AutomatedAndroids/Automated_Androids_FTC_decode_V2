@@ -309,13 +309,13 @@ public class BlueBackScore extends LinearOpMode {
 
         Actions.runBlocking(
                 new SequentialAction(
-                        shooterSubsystem.shoot_close(),
+                        shooterSubsystem.shoot_far(),
 
                         mecanumDrive.actionBuilder(beginPose)
-                                .lineToXSplineHeading(DriveCoords.BlueShootClose.position.x, DriveCoords.BlueShootClose.heading)
+                                .strafeToSplineHeading(DriveCoords.BlueShootFar.position, DriveCoords.BlueShootFar.heading)
                                 .build(),
 
-                        new SleepAction(3),
+                        new SleepAction(8),
 
                         shooterSubsystem.feed(),
 
@@ -325,26 +325,20 @@ public class BlueBackScore extends LinearOpMode {
 
                         shooterSubsystem.stopFeeding(),
 
-                        mecanumDrive.actionBuilder(DriveCoords.BlueShootClose)
-                                        .strafeToSplineHeading(DriveCoords.BluePickup3.position, DriveCoords.BluePickup3.heading)
-                                        .build(),
+                        mecanumDrive.actionBuilder(DriveCoords.BlueShootFar)
+                                .strafeToSplineHeading(DriveCoords.BluePickup3.position, DriveCoords.BluePickup3.heading)
+                                .build(),
 
                         new ParallelAction(
                                 intakeSubsystem.turnOnIntake(),
 
                                 mecanumDrive.actionBuilder(DriveCoords.BluePickup3)
-                                        .lineToY(DriveCoords.BluePickup3End.position.y, slowVel)
+                                        .strafeTo(DriveCoords.BluePickup3End.position)
                                         .build()
                         ),
 
                         mecanumDrive.actionBuilder(DriveCoords.BluePickup3End)
-                                .strafeTo(DriveCoords.BluePickup3.position)
-                            .build(),
-
-                        intakeSubsystem.turnOffIntake(),
-
-                        mecanumDrive.actionBuilder(DriveCoords.BluePickup3)
-                                .strafeToSplineHeading(DriveCoords.BlueShootClose.position, DriveCoords.BlueShootClose.heading)
+                                .strafeToSplineHeading(DriveCoords.BlueShootFar.position, DriveCoords.BlueShootFar.heading)
                                 .build(),
 
                         shooterSubsystem.feed(),
@@ -355,7 +349,7 @@ public class BlueBackScore extends LinearOpMode {
 
                         shooterSubsystem.stopFeeding(),
 
-                        mecanumDrive.actionBuilder(DriveCoords.BlueShootClose)
+                        mecanumDrive.actionBuilder(DriveCoords.BlueShootFar)
                                 .strafeToSplineHeading(DriveCoords.BluePickup2.position, DriveCoords.BluePickup2.heading)
                                 .build(),
 
@@ -363,19 +357,14 @@ public class BlueBackScore extends LinearOpMode {
                                 intakeSubsystem.turnOnIntake(),
 
                                 mecanumDrive.actionBuilder(DriveCoords.BluePickup2)
-                                        .lineToY(DriveCoords.BluePickup2End.position.y, slowVel)
+                                        .strafeTo(DriveCoords.BluePickup2End.position)
                                         .build()
                         ),
 
                         mecanumDrive.actionBuilder(DriveCoords.BluePickup2End)
-                                .strafeTo(DriveCoords.BluePickup2.position)
+                                .strafeToSplineHeading(DriveCoords.BlueShootFar.position, DriveCoords.BlueShootFar.heading)
                                 .build(),
 
-                        intakeSubsystem.turnOffIntake(),
-
-                        mecanumDrive.actionBuilder(DriveCoords.BluePickup2)
-                                .strafeToSplineHeading(DriveCoords.BlueShootClose.position, DriveCoords.BlueShootClose.heading)
-                                .build(),
 
                         shooterSubsystem.feed(),
 

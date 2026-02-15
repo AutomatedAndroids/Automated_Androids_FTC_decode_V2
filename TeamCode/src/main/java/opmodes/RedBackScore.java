@@ -309,13 +309,13 @@ public class RedBackScore extends LinearOpMode {
 
         Actions.runBlocking(
                 new SequentialAction(
-                        shooterSubsystem.shoot_close(),
+                        shooterSubsystem.shoot_far(),
 
                         mecanumDrive.actionBuilder(beginPose)
-                                .lineToXSplineHeading(DriveCoords.RedShootClose.position.x, DriveCoords.RedShootClose.heading)
+                                .strafeToSplineHeading(DriveCoords.RedShootFar.position, DriveCoords.RedShootFar.heading)
                                 .build(),
 
-                        new SleepAction(3),
+                        new SleepAction(8),
 
                         shooterSubsystem.feed(),
 
@@ -325,7 +325,7 @@ public class RedBackScore extends LinearOpMode {
 
                         shooterSubsystem.stopFeeding(),
 
-                        mecanumDrive.actionBuilder(DriveCoords.RedShootClose)
+                        mecanumDrive.actionBuilder(DriveCoords.RedShootFar)
                                         .strafeToSplineHeading(DriveCoords.RedPickup3.position, DriveCoords.RedPickup3.heading)
                                         .build(),
 
@@ -333,18 +333,12 @@ public class RedBackScore extends LinearOpMode {
                                 intakeSubsystem.turnOnIntake(),
 
                                 mecanumDrive.actionBuilder(DriveCoords.RedPickup3)
-                                        .lineToY(DriveCoords.RedPickup3End.position.y, slowVel)
+                                        .strafeTo(DriveCoords.RedPickup3End.position)
                                         .build()
                         ),
 
                         mecanumDrive.actionBuilder(DriveCoords.RedPickup3End)
-                                .strafeTo(DriveCoords.RedPickup3.position)
-                            .build(),
-
-                        intakeSubsystem.turnOffIntake(),
-
-                        mecanumDrive.actionBuilder(DriveCoords.RedPickup3)
-                                .strafeToSplineHeading(DriveCoords.RedShootClose.position, DriveCoords.RedShootClose.heading)
+                                .strafeToSplineHeading(DriveCoords.RedShootFar.position, DriveCoords.RedShootFar.heading)
                                 .build(),
 
                         shooterSubsystem.feed(),
@@ -355,7 +349,7 @@ public class RedBackScore extends LinearOpMode {
 
                         shooterSubsystem.stopFeeding(),
 
-                        mecanumDrive.actionBuilder(DriveCoords.RedShootClose)
+                        mecanumDrive.actionBuilder(DriveCoords.RedShootFar)
                                 .strafeToSplineHeading(DriveCoords.RedPickup2.position, DriveCoords.RedPickup2.heading)
                                 .build(),
 
@@ -363,19 +357,14 @@ public class RedBackScore extends LinearOpMode {
                                 intakeSubsystem.turnOnIntake(),
 
                                 mecanumDrive.actionBuilder(DriveCoords.RedPickup2)
-                                        .lineToY(DriveCoords.RedPickup2End.position.y, slowVel)
+                                        .strafeTo(DriveCoords.RedPickup2End.position)
                                         .build()
                         ),
 
                         mecanumDrive.actionBuilder(DriveCoords.RedPickup2End)
-                                .strafeTo(DriveCoords.RedPickup2.position)
+                                .strafeToSplineHeading(DriveCoords.RedShootFar.position, DriveCoords.RedShootFar.heading)
                                 .build(),
 
-                        intakeSubsystem.turnOffIntake(),
-
-                        mecanumDrive.actionBuilder(DriveCoords.RedPickup2)
-                                .strafeToSplineHeading(DriveCoords.RedShootClose.position, DriveCoords.RedShootClose.heading)
-                                .build(),
 
                         shooterSubsystem.feed(),
 
